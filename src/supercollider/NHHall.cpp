@@ -25,8 +25,8 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org>
 */
 
-#include "SC_PlugIn.hpp"
 #include "../core/nh_hall.hpp"
+#include "SC_PlugIn.hpp"
 
 static InterfaceTable* ft;
 

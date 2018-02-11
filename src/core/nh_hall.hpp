@@ -1,10 +1,14 @@
 #pragma once
+#include <cstring>
 #include <memory>
 
 namespace nh_ugens {
 
 class DCBlocker {
 public:
+    const float m_sample_rate;
+    const int m_buffer_size;
+
     float m_x1 = 0.0f;
     float m_y1 = 0.0f;
     float m_k = 0.95f;
@@ -27,16 +31,13 @@ public:
             m_y1 = y;
         }
     }
-
-private:
-    const float m_sample_rate;
-    const int m_buffer_size;
 };
 
 template <class Alloc>
 class Unit {
 public:
-    std::unique_ptr<Alloc> m_allocator;
+    const float m_sample_rate;
+    const int m_buffer_size;
 
     Unit(
         float sample_rate,
@@ -57,15 +58,13 @@ public:
 
     void process(const float* in, float* out_1, float* out_2) {
         m_dc_blocker.process(in, out_1);
-        memcpy(out_2, out_1, sizeof(float) * m_buffer_size);
+        std::memcpy(out_2, out_1, sizeof(float) * m_buffer_size);
     }
 
 private:
+    std::unique_ptr<Alloc> m_allocator;
     float* m_wire;
-    const float m_sample_rate;
-    const int m_buffer_size;
-
     DCBlocker m_dc_blocker;
 };
 
-}
+} // namespace nh_ugens
