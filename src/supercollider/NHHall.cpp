@@ -75,7 +75,7 @@ private:
 
     void next(int inNumSamples) {
         const float* in1 = in(0);
-        const float* in2 = in(1);
+        //const float* in2 = in(1);
         float* out1 = out(0);
         float* out2 = out(1);
 
