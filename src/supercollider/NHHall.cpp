@@ -66,6 +66,24 @@ public:
         set_calc_function<NHHall, &NHHall::clear>();
     }
 
+    template <typename UnitType, void (UnitType::*PointerToMember)(int)>
+    void set_calc_function(void)
+    {
+        mCalcFunc = make_calc_function<UnitType, PointerToMember>();
+        // The reason we are overriding this method is to remove this line:
+        // (mCalcFunc)(this, 1);
+        // Our particular calc function always expects inNumSamples to be equal
+        // to the buffer size. In the worst case, if inNumSamples is less
+        // than the buffer length that the core DSP class expects, the core
+        // DSP class will start accessing garbage memory.
+
+        // This could be fixed by adding a guard in the calc function, but for
+        // efficiency it's better to just never call the calc function
+        // improperly in the first place. Instead, we just output 0 as the
+        // initial sample.
+        clear(1);
+    }
+
 private:
     nh_ugens::Unit<SCAllocator> m_core;
 
@@ -78,6 +96,17 @@ private:
         //const float* in2 = in(1);
         float* out1 = out(0);
         float* out2 = out(1);
+
+        // Safety guard in case scsynth gives us a buffer size incompatible
+        // with the core DSP.
+
+        // I don't believe this is necessary since there aren't really any
+        // conditions where scsynth calls the calc function with
+        // inNumSamples != bufferSize.
+
+        // if (inNumSamples != bufferSize()) {
+        //     clear(inNumSamples);
+        // }
 
         m_core.process(in1, out1, out2);
     }
