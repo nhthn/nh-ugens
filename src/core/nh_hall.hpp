@@ -27,6 +27,35 @@ static float interpolate_cubic(float x, float y0, float y1, float y2, float y3) 
 
 constexpr float twopi = 6.283185307179586f;
 
+class MulAdd {
+public:
+    const float m_sample_rate;
+    const int m_buffer_size;
+
+    float m_mul;
+    float m_add;
+
+    MulAdd(
+        float sample_rate,
+        int buffer_size
+    ) :
+    m_sample_rate(sample_rate),
+    m_buffer_size(buffer_size)
+    {
+        m_mul = 1.0f;
+        m_add = 0.0f;
+    }
+
+    // NOTE: This method must be written to permit "in" and "out" to be the
+    // same buffer. That is, always read from "in" first and then write to
+    // "out".
+    void process(const float* in, float* out) {
+        for (int i = 0; i < m_buffer_size; i++) {
+            out[i] = in[i] * m_mul + m_add;
+        }
+    }
+};
+
 class SineLFO {
 public:
     const float m_sample_rate;
@@ -174,6 +203,7 @@ public:
     }
 };
 
+// Schroeder allpass with variable delay and cubic interpolation.
 class VariableAllpass : public BaseDelay {
 public:
     float m_k;
@@ -190,8 +220,9 @@ public:
     {
     }
 
-    // NOTE: This method must be written to permit "in" and "out" to be the
-    // same buffer. Always read from "in" first and then write to "out".
+    // NOTE: This method must be written to permit either of the inputs to be
+    // identical to the output buffer. Always read from inputs first and then
+    // write to outputs.
     void process(const float* in, const float* delay, float* out) {
         for (int i = 0; i < m_buffer_size; i++) {
             float position = m_read_position - delay[i] * m_sample_rate;
@@ -229,22 +260,31 @@ public:
     m_buffer_size(buffer_size),
     m_allocator(std::move(allocator)),
 
+    m_muladd(sample_rate, buffer_size),
     m_dc_blocker(sample_rate, buffer_size),
+    m_lfo(sample_rate, buffer_size),
     m_delay(sample_rate, buffer_size, 0.01f),
-    m_allpass(sample_rate, buffer_size, 0.03f, 0.5f),
-    m_lfo(sample_rate, buffer_size)
+    m_allpass(sample_rate, buffer_size, 0.05f, 0.5f)
 
     {
-        m_wire = allocate_wire();
+        m_wire_1 = allocate_wire();
+        m_wire_2 = allocate_wire();
+        m_wire_3 = allocate_wire();
 
         allocate_delay_line(m_delay);
         allocate_delay_line(m_allpass);
 
         m_lfo.set_frequency(1.0);
+
+        m_muladd.m_mul = 0.001f;
+        m_muladd.m_add = 0.03f;
     }
 
     ~Unit() {
-        m_allocator->deallocate(m_wire);
+        m_allocator->deallocate(m_wire_1);
+        m_allocator->deallocate(m_wire_2);
+        m_allocator->deallocate(m_wire_3);
+
         m_allocator->deallocate(m_delay.m_buffer);
         m_allocator->deallocate(m_allpass.m_buffer);
     }
@@ -260,21 +300,40 @@ public:
         memset(delay.m_buffer, 0, sizeof(float) * delay.m_size);
     }
 
+    void copy(float* in, float* out) {
+        std::memcpy(out, in, sizeof(float) * m_buffer_size);
+    }
+
     void process(const float* in, float* out_1, float* out_2) {
-        // m_dc_blocker.process(in, m_wire);
-        // m_delay.process(m_wire, m_wire);
-        // m_allpass.process(m_wire, out_1);
-        // std::memcpy(out_2, out_1, sizeof(float) * m_buffer_size);
-        m_lfo.process(out_1, out_2);
+        float* sound = m_wire_1;
+        m_dc_blocker.process(in, sound);
+
+        m_lfo.process(m_wire_2, m_wire_3);
+        m_muladd.process(m_wire_2, m_wire_2);
+
+        m_allpass.process(sound, m_wire_2, sound);
+
+        copy(sound, out_1);
+        copy(out_1, out_2);
     }
 
 private:
     std::unique_ptr<Alloc> m_allocator;
-    float* m_wire;
+
+    // NOTE: When adding a new wire buffer, don't forget to allocate it in the
+    // constructor and free it in the destructor.
+    float* m_wire_1;
+    float* m_wire_2;
+    float* m_wire_3;
+
     DCBlocker m_dc_blocker;
-    Delay m_delay;
-    Allpass m_allpass;
+    MulAdd m_muladd;
     SineLFO m_lfo;
+
+    // NOTE: When adding a new delay unit of some kind, don't forget to
+    // allocate the memory in the constructor and free it in the destructor.
+    Delay m_delay;
+    VariableAllpass m_allpass;
 };
 
 } // namespace nh_ugens
