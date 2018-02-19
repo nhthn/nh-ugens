@@ -421,14 +421,14 @@ public:
         m_delay_1.tap(0.123e-3f, 1.0f, out_1);
         m_delay_1.tap(0.750e-3f, 0.8f, out_2);
 
-        m_delay_2.tap(0.143e-3f, 0.8f, out_1);
-        m_delay_2.tap(0.122e-3f, 1.0f, out_2);
+        m_delay_2.tap(0.113e-3f, 0.8f, out_1);
+        m_delay_2.tap(0.212e-3f, 1.0f, out_2);
 
-        m_delay_3.tap(0.138e-3f, 1.0f, out_1);
-        m_delay_3.tap(0.569e-3f, 0.8f, out_2);
+        m_delay_3.tap(0.538e-3f, 0.8f, out_1);
+        m_delay_3.tap(0.169e-3f, 1.0f, out_2);
 
-        m_delay_4.tap(0.175e-3f, 0.8f, out_1);
-        m_delay_4.tap(0.141e-3f, 1.0f, out_2);
+        m_delay_4.tap(0.25e-3f, 0.8f, out_1);
+        m_delay_4.tap(0.131e-3f, 1.0f, out_2);
     }
 
 private:
