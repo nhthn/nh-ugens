@@ -4,9 +4,11 @@
 
 /*
 
-CURRENT STATUS
+TODO:
 
-- Need to implement LPF and attenuation
+- Tap into the feedback loop in two places
+- Adjust parameters to fix undulation in reverb tail
+- Add support for RT60 control
 
 */
 
@@ -155,7 +157,7 @@ public:
     }
 };
 
-// Fixed delay line. Not used.
+// Fixed delay line.
 class Delay : public BaseDelay {
 public:
     Delay(
@@ -285,13 +287,13 @@ public:
     m_early_allpass_4(sample_rate, buffer_size, 10.2e-3f, 0.611f),
 
     // TODO: Maximum delays for variable allpasses are temporary.
-    m_allpass_1(sample_rate, buffer_size, 100e-3f, 20.6e-3f, 0.55f),
+    m_allpass_1(sample_rate, buffer_size, 100e-3f, 25.6e-3f, 0.55f),
     m_delay_1(sample_rate, buffer_size, 6.3e-3f),
     m_allpass_2(sample_rate, buffer_size, 31.4e-3f, 0.63f),
     m_delay_2(sample_rate, buffer_size, 120.6e-3f),
     m_allpass_3(sample_rate, buffer_size, 100e-3f, 40.7e-3f, 0.55f),
     m_delay_3(sample_rate, buffer_size, 8.2e-3f),
-    m_allpass_4(sample_rate, buffer_size, 61.6e-3f, 0.63f),
+    m_allpass_4(sample_rate, buffer_size, 65.6e-3f, -0.63f),
     m_delay_4(sample_rate, buffer_size, 180.3e-3f)
 
     {
@@ -374,6 +376,8 @@ public:
     }
 
     void process(const float* in, float* out_1, float* out_2) {
+        float k = 0.8f;
+
         // LFO
         float* lfo_1 = m_wire_2;
         float* lfo_2 = m_wire_3;
@@ -402,7 +406,7 @@ public:
         m_delay_2.process(sound, sound);
 
         m_hi_shelf_1.process(sound, sound);
-        multiply(sound, 0.9f, sound);
+        multiply(sound, k, sound);
 
         m_allpass_3.process(sound, lfo_2, sound);
         m_delay_3.process(sound, sound);
@@ -410,7 +414,7 @@ public:
         m_delay_4.process(sound, sound);
 
         m_hi_shelf_2.process(sound, sound);
-        multiply(sound, 0.9f, sound);
+        multiply(sound, k, sound);
         copy(sound, m_feedback);
 
         // Output taps
@@ -418,17 +422,20 @@ public:
         zero_wire(out_1);
         zero_wire(out_2);
 
-        m_delay_1.tap(0.123e-3f, 1.0f, out_1);
-        m_delay_1.tap(0.750e-3f, 0.8f, out_2);
+        // Keep the inter-channel delays somewhere between 0.1 and 0.7 ms --
+        // this allows the Haas effect to come in.
 
-        m_delay_2.tap(0.113e-3f, 0.8f, out_1);
-        m_delay_2.tap(0.212e-3f, 1.0f, out_2);
+        m_delay_1.tap(0, 0.5f, out_1);
+        m_delay_1.tap(0.750e-3f, 0.4f, out_2);
 
-        m_delay_3.tap(0.538e-3f, 0.8f, out_1);
-        m_delay_3.tap(0.169e-3f, 1.0f, out_2);
+        m_delay_2.tap(0, 0.8f, out_1);
+        m_delay_2.tap(0.712e-3f, 1.0f, out_2);
 
-        m_delay_4.tap(0.25e-3f, 0.8f, out_1);
-        m_delay_4.tap(0.131e-3f, 1.0f, out_2);
+        m_delay_3.tap(0.538e-3f, 0.4f, out_1);
+        m_delay_3.tap(0, 0.5f, out_2);
+
+        m_delay_4.tap(0.65e-3f, 0.8f, out_1);
+        m_delay_4.tap(0, 1.0f, out_2);
     }
 
 private:
