@@ -27,35 +27,6 @@ static float interpolate_cubic(float x, float y0, float y1, float y2, float y3) 
 
 constexpr float twopi = 6.283185307179586f;
 
-class MulAdd {
-public:
-    const float m_sample_rate;
-    const int m_buffer_size;
-
-    float m_mul;
-    float m_add;
-
-    MulAdd(
-        float sample_rate,
-        int buffer_size
-    ) :
-    m_sample_rate(sample_rate),
-    m_buffer_size(buffer_size)
-    {
-        m_mul = 1.0f;
-        m_add = 0.0f;
-    }
-
-    // NOTE: This method must be written to permit "in" and "out" to be the
-    // same buffer. That is, always read from "in" first and then write to
-    // "out".
-    void process(const float* in, float* out) {
-        for (int i = 0; i < m_buffer_size; i++) {
-            out[i] = in[i] * m_mul + m_add;
-        }
-    }
-};
-
 class SineLFO {
 public:
     const float m_sample_rate;
@@ -135,17 +106,18 @@ public:
     BaseDelay(
         float sample_rate,
         int buffer_size,
+        float max_delay,
         float delay
     ) :
     m_sample_rate(sample_rate),
     m_buffer_size(buffer_size)
     {
-        int delay_in_samples = m_sample_rate * delay;
-        m_size = next_power_of_two(delay_in_samples);
+        int max_delay_in_samples = m_sample_rate * max_delay;
+        m_size = next_power_of_two(max_delay_in_samples);
         m_mask = m_size - 1;
 
         m_read_position = 0;
-        m_delay = delay_in_samples;
+        m_delay = m_sample_rate * delay;
     }
 };
 
@@ -157,7 +129,7 @@ public:
         int buffer_size,
         float delay
     ) :
-    BaseDelay(sample_rate, buffer_size, delay)
+    BaseDelay(sample_rate, buffer_size, delay, delay)
     {
     }
 
@@ -184,7 +156,7 @@ public:
         float delay,
         float k
     ) :
-    BaseDelay(sample_rate, buffer_size, delay),
+    BaseDelay(sample_rate, buffer_size, delay, delay),
     m_k(k)
     {
     }
@@ -207,15 +179,15 @@ public:
 class VariableAllpass : public BaseDelay {
 public:
     float m_k;
-    float m_last_delay;
 
     VariableAllpass(
         float sample_rate,
         int buffer_size,
         float max_delay,
+        float delay,
         float k
     ) :
-    BaseDelay(sample_rate, buffer_size, max_delay),
+    BaseDelay(sample_rate, buffer_size, max_delay, delay),
     m_k(k)
     {
     }
@@ -223,9 +195,9 @@ public:
     // NOTE: This method must be written to permit either of the inputs to be
     // identical to the output buffer. Always read from inputs first and then
     // write to outputs.
-    void process(const float* in, const float* delay, float* out) {
+    void process(const float* in, const float* offset, float* out) {
         for (int i = 0; i < m_buffer_size; i++) {
-            float position = m_read_position - delay[i] * m_sample_rate;
+            float position = m_read_position - (m_delay + offset[i]) * m_sample_rate;
             int iposition = position;
             float position_frac = position - iposition;
 
@@ -260,24 +232,41 @@ public:
     m_buffer_size(buffer_size),
     m_allocator(std::move(allocator)),
 
-    m_muladd(sample_rate, buffer_size),
-    m_dc_blocker(sample_rate, buffer_size),
     m_lfo(sample_rate, buffer_size),
-    m_delay(sample_rate, buffer_size, 0.01f),
-    m_allpass(sample_rate, buffer_size, 0.05f, 0.5f)
+
+    m_early_allpass_1(sample_rate, buffer_size, 3.5e-3f, 0.725f),
+    m_early_allpass_2(sample_rate, buffer_size, 5.0e-3f, 0.633f),
+    m_early_allpass_3(sample_rate, buffer_size, 8.5e-3f, 0.814f),
+    m_early_allpass_4(sample_rate, buffer_size, 10.2e-3f, 0.611f),
+
+    // Maximum delays for variable allpasses are temporary.
+    m_allpass_1(sample_rate, buffer_size, 100e-3f, 20.6e-3f, 0.55f),
+    m_delay_1(sample_rate, buffer_size, 6.3e-3f),
+    m_allpass_2(sample_rate, buffer_size, 31.4e-3f, 0.63f),
+    m_delay_2(sample_rate, buffer_size, 120.6e-3f),
+    m_allpass_3(sample_rate, buffer_size, 100e-3f, 40.7e-3f, 0.55f),
+    m_delay_3(sample_rate, buffer_size, 4.2e-3f),
+    m_allpass_4(sample_rate, buffer_size, 61.6e-3f, 0.63f),
+    m_delay_4(sample_rate, buffer_size, 180.3e-3f)
 
     {
         m_wire_1 = allocate_wire();
         m_wire_2 = allocate_wire();
         m_wire_3 = allocate_wire();
 
-        allocate_delay_line(m_delay);
-        allocate_delay_line(m_allpass);
+        allocate_delay_line(m_early_allpass_1);
+        allocate_delay_line(m_early_allpass_2);
+        allocate_delay_line(m_early_allpass_3);
+        allocate_delay_line(m_early_allpass_4);
 
-        m_lfo.set_frequency(1.0);
-
-        m_muladd.m_mul = 0.001f;
-        m_muladd.m_add = 0.03f;
+        allocate_delay_line(m_allpass_1);
+        allocate_delay_line(m_delay_1);
+        allocate_delay_line(m_allpass_2);
+        allocate_delay_line(m_delay_2);
+        allocate_delay_line(m_allpass_3);
+        allocate_delay_line(m_delay_3);
+        allocate_delay_line(m_allpass_4);
+        allocate_delay_line(m_delay_4);
     }
 
     ~Unit() {
@@ -285,8 +274,19 @@ public:
         m_allocator->deallocate(m_wire_2);
         m_allocator->deallocate(m_wire_3);
 
-        m_allocator->deallocate(m_delay.m_buffer);
-        m_allocator->deallocate(m_allpass.m_buffer);
+        free_delay_line(m_early_allpass_1);
+        free_delay_line(m_early_allpass_2);
+        free_delay_line(m_early_allpass_3);
+        free_delay_line(m_early_allpass_4);
+
+        free_delay_line(m_allpass_1);
+        free_delay_line(m_delay_1);
+        free_delay_line(m_allpass_2);
+        free_delay_line(m_delay_2);
+        free_delay_line(m_allpass_3);
+        free_delay_line(m_delay_3);
+        free_delay_line(m_allpass_4);
+        free_delay_line(m_delay_4);
     }
 
     float* allocate_wire(void) {
@@ -300,18 +300,48 @@ public:
         memset(delay.m_buffer, 0, sizeof(float) * delay.m_size);
     }
 
+    void free_delay_line(BaseDelay& delay) {
+        m_allocator->deallocate(delay.m_buffer);
+    }
+
     void copy(float* in, float* out) {
         std::memcpy(out, in, sizeof(float) * m_buffer_size);
     }
 
+    void multiply(float* in, float k, float* out) {
+        for (int i = 0; i < m_buffer_size; i++) {
+            out[i] = in[i] * k;
+        }
+    }
+
     void process(const float* in, float* out_1, float* out_2) {
+        // LFO
+        float* lfo_1 = m_wire_2;
+        float* lfo_2 = m_wire_3;
+
+        m_lfo.set_frequency(1.0f);
+        m_lfo.process(lfo_1, lfo_2);
+
+        multiply(lfo_1, 0.3e-3f, lfo_1);
+        multiply(lfo_2, 0.4e-3f, lfo_2);
+
+        // Sound signal path
         float* sound = m_wire_1;
-        m_dc_blocker.process(in, sound);
 
-        m_lfo.process(m_wire_2, m_wire_3);
-        m_muladd.process(m_wire_2, m_wire_2);
+        m_early_allpass_1.process(in, sound);
+        m_early_allpass_2.process(sound, sound);
+        m_early_allpass_3.process(sound, sound);
+        m_early_allpass_4.process(sound, sound);
 
-        m_allpass.process(sound, m_wire_2, sound);
+        m_allpass_1.process(sound, lfo_1, sound);
+        m_delay_1.process(sound, sound);
+        m_allpass_2.process(sound, sound);
+        m_delay_2.process(sound, sound);
+
+        m_allpass_3.process(sound, lfo_2, sound);
+        m_delay_3.process(sound, sound);
+        m_allpass_4.process(sound, sound);
+        m_delay_4.process(sound, sound);
 
         copy(sound, out_1);
         copy(out_1, out_2);
@@ -326,14 +356,24 @@ private:
     float* m_wire_2;
     float* m_wire_3;
 
-    DCBlocker m_dc_blocker;
-    MulAdd m_muladd;
     SineLFO m_lfo;
 
     // NOTE: When adding a new delay unit of some kind, don't forget to
     // allocate the memory in the constructor and free it in the destructor.
-    Delay m_delay;
-    VariableAllpass m_allpass;
+    Allpass m_early_allpass_1;
+    Allpass m_early_allpass_2;
+    Allpass m_early_allpass_3;
+    Allpass m_early_allpass_4;
+
+    VariableAllpass m_allpass_1;
+    Delay m_delay_1;
+    Allpass m_allpass_2;
+    Delay m_delay_2;
+
+    VariableAllpass m_allpass_3;
+    Delay m_delay_3;
+    Allpass m_allpass_4;
+    Delay m_delay_4;
 };
 
 } // namespace nh_ugens
