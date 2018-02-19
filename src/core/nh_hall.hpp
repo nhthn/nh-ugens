@@ -67,7 +67,7 @@ public:
 
     float m_x1 = 0.0f;
     float m_y1 = 0.0f;
-    float m_k = 0.95f;
+    float m_k = 0.99f;
 
     DCBlocker(
         float sample_rate,
@@ -88,6 +88,36 @@ public:
             out[i] = y;
             m_x1 = x;
             m_y1 = y;
+        }
+    }
+};
+
+class HiShelf {
+public:
+    const float m_sample_rate;
+    const int m_buffer_size;
+
+    float m_x1 = 0.0f;
+    // TODO: Make this sample-rate invariant
+    float m_k = 0.3f;
+
+    HiShelf(
+        float sample_rate,
+        int buffer_size
+    ) :
+    m_sample_rate(sample_rate),
+    m_buffer_size(buffer_size)
+    {
+    }
+
+    // NOTE: This method must be written to permit "in" and "out" to be the
+    // same buffer. That is, always read from "in" first and then write to
+    // "out".
+    void process(const float* in, float* out) {
+        for (int i = 0; i < m_buffer_size; i++) {
+            float x = in[i];
+            out[i] = (1 - m_k) * x + m_k * m_x1;
+            m_x1 = x;
         }
     }
 };
@@ -125,7 +155,7 @@ public:
     }
 };
 
-// Fixed delay line.
+// Fixed delay line. Not used.
 class Delay : public BaseDelay {
 public:
     Delay(
@@ -145,6 +175,14 @@ public:
             m_buffer[m_read_position] = in[i];
             m_read_position = (m_read_position + 1) & m_mask;
             out[i] = out_value;
+        }
+    }
+
+    void tap(float delay, float gain, float* out) {
+        int delay_in_samples = delay * m_sample_rate;
+        for (int i = 0; i < m_buffer_size; i++) {
+            int position = m_read_position - m_buffer_size - delay_in_samples + i;
+            out[i] += gain * m_buffer[position & m_mask];
         }
     }
 };
@@ -237,23 +275,29 @@ public:
     m_allocator(std::move(allocator)),
 
     m_lfo(sample_rate, buffer_size),
+    m_dc_blocker(sample_rate, buffer_size),
+    m_hi_shelf_1(sample_rate, buffer_size),
+    m_hi_shelf_2(sample_rate, buffer_size),
 
     m_early_allpass_1(sample_rate, buffer_size, 3.5e-3f, 0.725f),
     m_early_allpass_2(sample_rate, buffer_size, 5.0e-3f, 0.633f),
     m_early_allpass_3(sample_rate, buffer_size, 8.5e-3f, 0.814f),
     m_early_allpass_4(sample_rate, buffer_size, 10.2e-3f, 0.611f),
 
-    // Maximum delays for variable allpasses are temporary.
+    // TODO: Maximum delays for variable allpasses are temporary.
     m_allpass_1(sample_rate, buffer_size, 100e-3f, 20.6e-3f, 0.55f),
     m_delay_1(sample_rate, buffer_size, 6.3e-3f),
     m_allpass_2(sample_rate, buffer_size, 31.4e-3f, 0.63f),
     m_delay_2(sample_rate, buffer_size, 120.6e-3f),
     m_allpass_3(sample_rate, buffer_size, 100e-3f, 40.7e-3f, 0.55f),
-    m_delay_3(sample_rate, buffer_size, 4.2e-3f),
+    m_delay_3(sample_rate, buffer_size, 8.2e-3f),
     m_allpass_4(sample_rate, buffer_size, 61.6e-3f, 0.63f),
     m_delay_4(sample_rate, buffer_size, 180.3e-3f)
 
     {
+        m_feedback = allocate_wire();
+        zero_wire(m_feedback);
+
         m_wire_1 = allocate_wire();
         m_wire_2 = allocate_wire();
         m_wire_3 = allocate_wire();
@@ -274,6 +318,7 @@ public:
     }
 
     ~Unit() {
+        m_allocator->deallocate(m_feedback);
         m_allocator->deallocate(m_wire_1);
         m_allocator->deallocate(m_wire_2);
         m_allocator->deallocate(m_wire_3);
@@ -298,6 +343,10 @@ public:
         return static_cast<float*>(memory);
     }
 
+    void zero_wire(float* wire) {
+        memset(wire, 0, sizeof(float) * m_buffer_size);
+    }
+
     void allocate_delay_line(BaseDelay& delay) {
         void* memory = m_allocator->allocate(sizeof(float) * delay.m_size);
         delay.m_buffer = static_cast<float*>(memory);
@@ -318,16 +367,22 @@ public:
         }
     }
 
+    void add(float* in_1, float* in_2, float* out) {
+        for (int i = 0; i < m_buffer_size; i++) {
+            out[i] = in_1[i] + in_2[i];
+        }
+    }
+
     void process(const float* in, float* out_1, float* out_2) {
         // LFO
         float* lfo_1 = m_wire_2;
         float* lfo_2 = m_wire_3;
 
-        m_lfo.set_frequency(1.0f);
+        m_lfo.set_frequency(0.5f);
         m_lfo.process(lfo_1, lfo_2);
 
-        multiply(lfo_1, 0.3e-3f, lfo_1);
-        multiply(lfo_2, 0.4e-3f, lfo_2);
+        multiply(lfo_1, 0.32e-3f, lfo_1);
+        multiply(lfo_2, -0.45e-3f, lfo_2);
 
         // Sound signal path
         float* sound = m_wire_1;
@@ -337,18 +392,43 @@ public:
         m_early_allpass_3.process(sound, sound);
         m_early_allpass_4.process(sound, sound);
 
+        add(m_feedback, sound, sound);
+
+        m_dc_blocker.process(sound, sound);
+
         m_allpass_1.process(sound, lfo_1, sound);
         m_delay_1.process(sound, sound);
         m_allpass_2.process(sound, sound);
         m_delay_2.process(sound, sound);
+
+        m_hi_shelf_1.process(sound, sound);
+        multiply(sound, 0.9f, sound);
 
         m_allpass_3.process(sound, lfo_2, sound);
         m_delay_3.process(sound, sound);
         m_allpass_4.process(sound, sound);
         m_delay_4.process(sound, sound);
 
-        copy(sound, out_1);
-        copy(out_1, out_2);
+        m_hi_shelf_2.process(sound, sound);
+        multiply(sound, 0.9f, sound);
+        copy(sound, m_feedback);
+
+        // Output taps
+
+        zero_wire(out_1);
+        zero_wire(out_2);
+
+        m_delay_1.tap(0.123e-3f, 1.0f, out_1);
+        m_delay_1.tap(0.750e-3f, 0.8f, out_2);
+
+        m_delay_2.tap(0.143e-3f, 0.8f, out_1);
+        m_delay_2.tap(0.122e-3f, 1.0f, out_2);
+
+        m_delay_3.tap(0.138e-3f, 1.0f, out_1);
+        m_delay_3.tap(0.569e-3f, 0.8f, out_2);
+
+        m_delay_4.tap(0.175e-3f, 0.8f, out_1);
+        m_delay_4.tap(0.141e-3f, 1.0f, out_2);
     }
 
 private:
@@ -356,11 +436,16 @@ private:
 
     // NOTE: When adding a new wire buffer, don't forget to allocate it in the
     // constructor and free it in the destructor.
+    float* m_feedback;
     float* m_wire_1;
     float* m_wire_2;
     float* m_wire_3;
 
     SineLFO m_lfo;
+    DCBlocker m_dc_blocker;
+
+    HiShelf m_hi_shelf_1;
+    HiShelf m_hi_shelf_2;
 
     // NOTE: When adding a new delay unit of some kind, don't forget to
     // allocate the memory in the constructor and free it in the destructor.
