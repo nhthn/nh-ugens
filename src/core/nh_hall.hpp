@@ -101,7 +101,9 @@ public:
     int m_mask;
     float* m_buffer;
     int m_read_position;
-    int m_delay;
+
+    float m_delay;
+    int m_delay_in_samples;
 
     BaseDelay(
         float sample_rate,
@@ -117,7 +119,9 @@ public:
         m_mask = m_size - 1;
 
         m_read_position = 0;
-        m_delay = m_sample_rate * delay;
+
+        m_delay = delay;
+        m_delay_in_samples = m_sample_rate * delay;
     }
 };
 
@@ -137,7 +141,7 @@ public:
     // same buffer. Always read from "in" first and then write to "out".
     void process(const float* in, float* out) {
         for (int i = 0; i < m_buffer_size; i++) {
-            float out_value = m_buffer[(m_read_position - m_delay) & m_mask];
+            float out_value = m_buffer[(m_read_position - m_delay_in_samples) & m_mask];
             m_buffer[m_read_position] = in[i];
             m_read_position = (m_read_position + 1) & m_mask;
             out[i] = out_value;
@@ -165,7 +169,7 @@ public:
     // same buffer. Always read from "in" first and then write to "out".
     void process(const float* in, float* out) {
         for (int i = 0; i < m_buffer_size; i++) {
-            float delayed_signal = m_buffer[(m_read_position - m_delay) & m_mask];
+            float delayed_signal = m_buffer[(m_read_position - m_delay_in_samples) & m_mask];
             float feedback_plus_input =
                 in[i] + delayed_signal * m_k;
             m_buffer[m_read_position] = feedback_plus_input;
