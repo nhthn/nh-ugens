@@ -37,7 +37,7 @@ public:
     World* m_world;
     SCAllocator(World* world) : m_world(world) { }
 
-    void* allocate(int memory_size) {
+    void* ASSUME_ALIGNED(64) allocate(int memory_size) {
         void* memory = RTAlloc(m_world, memory_size);
         if (memory == nullptr) {
             throw real_time_allocation_failed();
