@@ -9,4 +9,5 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
 endif()
 
 add_subdirectory(src/supercollider)
+add_subdirectory(src/chuck)
 add_subdirectory(test)
