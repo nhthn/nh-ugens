@@ -64,11 +64,10 @@ public:
         m_k = twopi * frequency / m_sample_rate;
     }
 
-    void process(float& cosine, float& sine) {
+    std::tuple<float, float> process(void) {
         m_cosine -= m_k * m_sine;
         m_sine += m_k * m_cosine;
-        cosine = m_cosine;
-        sine = m_sine;
+        return std::make_tuple(m_cosine, m_sine);
     }
 };
 
@@ -345,17 +344,17 @@ public:
         float k = 0.8f;
 
         // LFO
-        float lfo_1 = m_wire_2;
-        float lfo_2 = m_wire_3;
+        float lfo_1;
+        float lfo_2;
 
         m_lfo.set_frequency(0.5f);
-        m_lfo.process(lfo_1, lfo_2);
+        std::tie(lfo_1, lfo_2) = m_lfo.process();
 
         lfo_1 *= 0.32e-3f;
         lfo_2 *= -0.45e-3f;
 
         // Sound signal path
-        float sound = m_wire_1;
+        float sound;
 
         sound = m_early_allpass_1.process(in);
         sound = m_early_allpass_2.process(sound);
@@ -406,9 +405,6 @@ private:
     std::unique_ptr<Alloc> m_allocator;
 
     float m_feedback = 0.f;
-    float m_wire_1 = 0.f;
-    float m_wire_2 = 0.f;
-    float m_wire_3 = 0.f;
 
     SineLFO m_lfo;
     DCBlocker m_dc_blocker;
