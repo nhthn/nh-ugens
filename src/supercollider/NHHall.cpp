@@ -55,7 +55,6 @@ public:
     NHHall() try :
     m_core(
         sampleRate(),
-        bufferSize(),
         std::unique_ptr<SCAllocator>(new SCAllocator(mWorld))
     )
     {

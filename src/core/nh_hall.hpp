@@ -44,17 +44,14 @@ public:
 class SineLFO {
 public:
     const float m_sample_rate;
-    const int m_buffer_size;
     float m_k;
     float m_cosine;
     float m_sine;
 
     SineLFO(
-        float sample_rate,
-        int buffer_size
+        float sample_rate
     ) :
-    m_sample_rate(sample_rate),
-    m_buffer_size(buffer_size)
+    m_sample_rate(sample_rate)
     {
         m_cosine = 1.0;
         m_sine = 0.0;
@@ -74,18 +71,15 @@ public:
 class DCBlocker {
 public:
     const float m_sample_rate;
-    const int m_buffer_size;
 
     float m_x1 = 0.0f;
     float m_y1 = 0.0f;
     float m_k = 0.99f;
 
     DCBlocker(
-        float sample_rate,
-        int buffer_size
+        float sample_rate
     ) :
-    m_sample_rate(sample_rate),
-    m_buffer_size(buffer_size)
+    m_sample_rate(sample_rate)
     {
     }
 
@@ -102,18 +96,15 @@ public:
 class HiShelf {
 public:
     const float m_sample_rate;
-    const int m_buffer_size;
 
     float m_x1 = 0.0f;
     // TODO: Make this sample-rate invariant
     float m_k = 0.3f;
 
     HiShelf(
-        float sample_rate,
-        int buffer_size
+        float sample_rate
     ) :
-    m_sample_rate(sample_rate),
-    m_buffer_size(buffer_size)
+    m_sample_rate(sample_rate)
     {
     }
 
@@ -128,7 +119,6 @@ public:
 class BaseDelay {
 public:
     const float m_sample_rate;
-    const int m_buffer_size;
 
     int m_size;
     int m_mask;
@@ -140,12 +130,10 @@ public:
 
     BaseDelay(
         float sample_rate,
-        int buffer_size,
         float max_delay,
         float delay
     ) :
-    m_sample_rate(sample_rate),
-    m_buffer_size(buffer_size)
+    m_sample_rate(sample_rate)
     {
         int max_delay_in_samples = m_sample_rate * max_delay;
         m_size = next_power_of_two(max_delay_in_samples);
@@ -163,10 +151,9 @@ class Delay : public BaseDelay {
 public:
     Delay(
         float sample_rate,
-        int buffer_size,
         float delay
     ) :
-    BaseDelay(sample_rate, buffer_size, delay, delay)
+    BaseDelay(sample_rate, delay, delay)
     {
     }
 
@@ -182,7 +169,7 @@ public:
 
     float tap(float delay, float gain) {
         int delay_in_samples = delay * m_sample_rate;
-        int position = m_read_position - m_buffer_size - delay_in_samples;
+        int position = m_read_position - delay_in_samples;
         float out = gain * m_buffer[position & m_mask];
         return out;
     }
@@ -195,11 +182,10 @@ public:
 
     Allpass(
         float sample_rate,
-        int buffer_size,
         float delay,
         float k
     ) :
-    BaseDelay(sample_rate, buffer_size, delay, delay),
+    BaseDelay(sample_rate, delay, delay),
     m_k(k)
     {
     }
@@ -222,12 +208,11 @@ public:
 
     VariableAllpass(
         float sample_rate,
-        int buffer_size,
         float max_delay,
         float delay,
         float k
     ) :
-    BaseDelay(sample_rate, buffer_size, max_delay, delay),
+    BaseDelay(sample_rate, max_delay, delay),
     m_k(k)
     {
     }
@@ -258,36 +243,33 @@ template <class Alloc>
 class Unit {
 public:
     const float m_sample_rate;
-    const int m_buffer_size;
 
     Unit(
         float sample_rate,
-        int buffer_size,
         std::unique_ptr<Alloc> allocator
     ) :
     m_sample_rate(sample_rate),
-    m_buffer_size(buffer_size),
     m_allocator(std::move(allocator)),
 
-    m_lfo(sample_rate, buffer_size),
-    m_dc_blocker(sample_rate, buffer_size),
-    m_hi_shelf_1(sample_rate, buffer_size),
-    m_hi_shelf_2(sample_rate, buffer_size),
+    m_lfo(sample_rate),
+    m_dc_blocker(sample_rate),
+    m_hi_shelf_1(sample_rate),
+    m_hi_shelf_2(sample_rate),
 
-    m_early_allpass_1(sample_rate, buffer_size, 3.5e-3f, 0.725f),
-    m_early_allpass_2(sample_rate, buffer_size, 5.0e-3f, 0.633f),
-    m_early_allpass_3(sample_rate, buffer_size, 8.5e-3f, 0.814f),
-    m_early_allpass_4(sample_rate, buffer_size, 10.2e-3f, 0.611f),
+    m_early_allpass_1(sample_rate, 3.5e-3f, 0.725f),
+    m_early_allpass_2(sample_rate, 5.0e-3f, 0.633f),
+    m_early_allpass_3(sample_rate, 8.5e-3f, 0.814f),
+    m_early_allpass_4(sample_rate, 10.2e-3f, 0.611f),
 
     // TODO: Maximum delays for variable allpasses are temporary.
-    m_allpass_1(sample_rate, buffer_size, 100e-3f, 25.6e-3f, 0.55f),
-    m_delay_1(sample_rate, buffer_size, 6.3e-3f),
-    m_allpass_2(sample_rate, buffer_size, 31.4e-3f, 0.63f),
-    m_delay_2(sample_rate, buffer_size, 120.6e-3f),
-    m_allpass_3(sample_rate, buffer_size, 100e-3f, 40.7e-3f, 0.55f),
-    m_delay_3(sample_rate, buffer_size, 8.2e-3f),
-    m_allpass_4(sample_rate, buffer_size, 65.6e-3f, -0.63f),
-    m_delay_4(sample_rate, buffer_size, 180.3e-3f)
+    m_allpass_1(sample_rate, 100e-3f, 25.6e-3f, 0.55f),
+    m_delay_1(sample_rate, 6.3e-3f),
+    m_allpass_2(sample_rate, 31.4e-3f, 0.63f),
+    m_delay_2(sample_rate, 120.6e-3f),
+    m_allpass_3(sample_rate, 100e-3f, 40.7e-3f, 0.55f),
+    m_delay_3(sample_rate, 8.2e-3f),
+    m_allpass_4(sample_rate, 65.6e-3f, -0.63f),
+    m_delay_4(sample_rate, 180.3e-3f)
 
     {
         m_feedback = 0.f;
@@ -323,12 +305,6 @@ public:
         free_delay_line(m_allpass_4);
         free_delay_line(m_delay_4);
     }
-
-    float* allocate_wire(void) {
-        void* memory = m_allocator->allocate(sizeof(float) * m_buffer_size);
-        return static_cast<float*>(memory);
-    }
-
 
     void allocate_delay_line(BaseDelay& delay) {
         void* memory = m_allocator->allocate(sizeof(float) * delay.m_size);

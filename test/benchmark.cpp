@@ -12,7 +12,6 @@ float bench(void) {
 
     nh_ugens::Unit<nh_ugens::Allocator> core(
         sample_rate,
-        1,
         std::unique_ptr<nh_ugens::Allocator>(new nh_ugens::Allocator())
     );
 
