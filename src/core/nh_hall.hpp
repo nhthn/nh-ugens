@@ -237,7 +237,7 @@ public:
     }
 };
 
-template <class Alloc>
+template <class Alloc = Allocator>
 class Unit {
 public:
     const float m_sample_rate;
@@ -286,6 +286,12 @@ public:
         allocate_delay_line(m_allpass_4);
         allocate_delay_line(m_delay_4);
     }
+
+    Unit(
+        float sample_rate
+    ) :
+    Unit(sample_rate, std::unique_ptr<Alloc>(new Alloc()))
+    { }
 
     ~Unit() {
 

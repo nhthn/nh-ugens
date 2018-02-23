@@ -10,10 +10,7 @@ float rfloat(void) {
 float bench(void) {
     float sample_rate = 48000.0f;
 
-    nh_ugens::Unit<nh_ugens::Allocator> core(
-        sample_rate,
-        std::unique_ptr<nh_ugens::Allocator>(new nh_ugens::Allocator())
-    );
+    nh_ugens::Unit<> core(sample_rate);
 
     timeval time_before;
     timeval time_after;

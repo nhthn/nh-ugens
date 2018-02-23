@@ -6,7 +6,7 @@ CK_DLL_CTOR(nhhall_ctor);
 CK_DLL_DTOR(nhhall_dtor);
 CK_DLL_TICKF(nhhall_tickf);
 
-typedef nh_ugens::Unit<nh_ugens::Allocator> NHHallCore;
+typedef nh_ugens::Unit<> NHHallCore;
 
 t_CKINT nhhall_core_offset = 0;
 
@@ -35,12 +35,7 @@ CK_DLL_QUERY(NHHall) {
 CK_DLL_CTOR(nhhall_ctor) {
     OBJ_MEMBER_INT(SELF, nhhall_core_offset) = 0;
 
-    nh_ugens::Allocator* allocator = new nh_ugens::Allocator;
-
-    NHHallCore* core = new NHHallCore(
-        API->vm->get_srate(),
-        std::unique_ptr<nh_ugens::Allocator>(allocator)
-    );
+    NHHallCore* core = new NHHallCore(API->vm->get_srate());
 
     OBJ_MEMBER_INT(SELF, nhhall_core_offset) = (t_CKINT)core;
 }
