@@ -263,7 +263,7 @@ public:
     m_allpass_1(sample_rate, 100e-3f, 25.6e-3f, 0.55f),
     m_delay_1(sample_rate, 6.3e-3f),
     m_allpass_2(sample_rate, 31.4e-3f, 0.63f),
-    m_delay_2(sample_rate, 120.6e-3f),
+    m_delay_2(sample_rate, 180.6e-3f),
     m_allpass_3(sample_rate, 100e-3f, 40.7e-3f, 0.55f),
     m_delay_3(sample_rate, 8.2e-3f),
     m_allpass_4(sample_rate, 65.6e-3f, -0.63f),
@@ -328,16 +328,18 @@ public:
         lfo_2 *= -0.45e-3f;
 
         // Sound signal path
-        float sound;
+        float early = in;
+        early = m_early_allpass_1.process(early);
+        early = m_early_allpass_2.process(early);
+        early = m_early_allpass_3.process(early);
+        early = m_early_allpass_4.process(early);
 
-        sound = m_early_allpass_1.process(in);
-        sound = m_early_allpass_2.process(sound);
-        sound = m_early_allpass_3.process(sound);
-        sound = m_early_allpass_4.process(sound);
+        float sound = 0.f;
 
         sound += m_feedback;
-
         sound = m_dc_blocker.process(sound);
+
+        sound += early;
 
         sound = m_allpass_1.process(sound, lfo_1);
         sound = m_delay_1.process(sound);
@@ -346,6 +348,8 @@ public:
 
         sound = m_hi_shelf_1.process(sound);
         sound *= k;
+
+        sound += early;
 
         sound = m_allpass_3.process(sound, lfo_2);
         sound = m_delay_3.process(sound);
@@ -359,19 +363,19 @@ public:
         // Keep the inter-channel delays somewhere between 0.1 and 0.7 ms --
         // this allows the Haas effect to come in.
 
-        float out_1 = 0.f;
-        float out_2 = 0.f;
+        float out_1 = early;
+        float out_2 = early;
 
-        out_1 += m_delay_1.tap(0, 0.5f);
-        out_2 += m_delay_1.tap(0.750e-3f, 0.4f);
+        // out_1 += m_delay_1.tap(0, 0.5f);
+        // out_2 += m_delay_1.tap(0.450e-3f, 0.4f);
 
         out_1 += m_delay_2.tap(0, 0.8f);
-        out_2 += m_delay_2.tap(0.712e-3f, 1.0f);
+        out_2 += m_delay_2.tap(0.612e-3f, 1.0f);
 
-        out_1 += m_delay_3.tap(0.538e-3f, 0.4f);
-        out_2 += m_delay_3.tap(0, 0.5f);
+        // out_1 += m_delay_3.tap(0.338e-3f, 0.4f);
+        // out_2 += m_delay_3.tap(0, 0.5f);
 
-        out_1 += m_delay_4.tap(0.65e-3f, 0.8f);
+        out_1 += m_delay_4.tap(0.55e-3f, 0.8f);
         out_2 += m_delay_4.tap(0, 1.0f);
 
         return std::make_tuple(out_1, out_2);
