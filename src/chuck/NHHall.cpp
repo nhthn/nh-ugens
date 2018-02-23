@@ -2,9 +2,6 @@
 #include "chuck_dl.h"
 #include "chuck_def.h"
 
-#include <stdio.h>
-#include <limits.h>
-
 CK_DLL_CTOR(nhhall_ctor);
 CK_DLL_DTOR(nhhall_dtor);
 CK_DLL_TICKF(nhhall_tickf);
