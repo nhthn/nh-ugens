@@ -24,7 +24,7 @@ float bench(void) {
     for (int i = 0; i < samples; i++) {
         float out_1;
         float out_2;
-        core.process(rfloat(), out_1, out_2);
+        std::tie(out_1, out_2) = core.process(rfloat());
     }
     gettimeofday(&time_after, 0);
 

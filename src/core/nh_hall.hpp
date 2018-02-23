@@ -316,7 +316,7 @@ public:
         m_allocator->deallocate(delay.m_buffer);
     }
 
-    void process(float in, float& out_1, float& out_2) {
+    std::tuple<float, float> process(float in) {
         float k = 0.8f;
 
         // LFO
@@ -361,8 +361,8 @@ public:
         // Keep the inter-channel delays somewhere between 0.1 and 0.7 ms --
         // this allows the Haas effect to come in.
 
-        out_1 = 0.f;
-        out_2 = 0.f;
+        float out_1 = 0.f;
+        float out_2 = 0.f;
 
         out_1 += m_delay_1.tap(0, 0.5f);
         out_2 += m_delay_1.tap(0.750e-3f, 0.4f);
@@ -375,6 +375,8 @@ public:
 
         out_1 += m_delay_4.tap(0.65e-3f, 0.8f);
         out_2 += m_delay_4.tap(0, 1.0f);
+
+        return std::make_tuple(out_1, out_2);
     }
 
 private:
