@@ -1,6 +1,7 @@
 #pragma once
 #include <cstring>
 #include <memory>
+#include <tuple>
 
 /*
 
@@ -89,15 +90,13 @@ public:
     {
     }
 
-    // NOTE: This method must be written to permit "in" and "out" to be the
-    // same buffer. That is, always read from "in" first and then write to
-    // "out".
-    void process(float in, float& out) {
+    float process(float in) {
         float x = in;
         float y = x - m_x1 + m_k * m_y1;
-        out = y;
+        float out = y;
         m_x1 = x;
         m_y1 = y;
+        return out;
     }
 };
 
@@ -119,13 +118,11 @@ public:
     {
     }
 
-    // NOTE: This method must be written to permit "in" and "out" to be the
-    // same buffer. That is, always read from "in" first and then write to
-    // "out".
-    void process(float in, float& out) {
+    float process(float in) {
         float x = in;
-        out = (1 - m_k) * x + m_k * m_x1;
+        float out = (1 - m_k) * x + m_k * m_x1;
         m_x1 = x;
+        return out;
     }
 };
 
@@ -176,17 +173,19 @@ public:
 
     // NOTE: This method must be written to permit "in" and "out" to be the
     // same buffer. Always read from "in" first and then write to "out".
-    void process(float in, float& out) {
+    float process(float in) {
         float out_value = m_buffer[(m_read_position - m_delay_in_samples) & m_mask];
         m_buffer[m_read_position] = in;
         m_read_position = (m_read_position + 1) & m_mask;
-        out = out_value;
+        float out = out_value;
+        return out;
     }
 
-    void tap(float delay, float gain, float& out) {
+    float tap(float delay, float gain) {
         int delay_in_samples = delay * m_sample_rate;
         int position = m_read_position - m_buffer_size - delay_in_samples;
-        out += gain * m_buffer[position & m_mask];
+        float out = gain * m_buffer[position & m_mask];
+        return out;
     }
 };
 
@@ -206,15 +205,14 @@ public:
     {
     }
 
-    // NOTE: This method must be written to permit "in" and "out" to be the
-    // same buffer. Always read from "in" first and then write to "out".
-    void process(float in, float& out) {
+    float process(float in) {
         float delayed_signal = m_buffer[(m_read_position - m_delay_in_samples) & m_mask];
         float feedback_plus_input =
             in + delayed_signal * m_k;
         m_buffer[m_read_position] = feedback_plus_input;
         m_read_position = (m_read_position + 1) & m_mask;
-        out = feedback_plus_input * -m_k + delayed_signal;
+        float out = feedback_plus_input * -m_k + delayed_signal;
+        return out;
     }
 };
 
@@ -235,10 +233,7 @@ public:
     {
     }
 
-    // NOTE: This method must be written to permit either of the inputs to be
-    // identical to the output buffer. Always read from inputs first and then
-    // write to outputs.
-    void process(float in, float offset, float& out) {
+    float process(float in, float offset) {
         float position = m_read_position - (m_delay + offset) * m_sample_rate;
         int iposition = position;
         float position_frac = position - iposition;
@@ -254,7 +249,9 @@ public:
             in + delayed_signal * m_k;
         m_buffer[m_read_position] = feedback_plus_input;
         m_read_position = (m_read_position + 1) & m_mask;
-        out = feedback_plus_input * -m_k + delayed_signal;
+        float out = feedback_plus_input * -m_k + delayed_signal;
+
+        return out;
     }
 };
 
@@ -360,46 +357,49 @@ public:
         // Sound signal path
         float sound = m_wire_1;
 
-        m_early_allpass_1.process(in, sound);
-        m_early_allpass_2.process(sound, sound);
-        m_early_allpass_3.process(sound, sound);
-        m_early_allpass_4.process(sound, sound);
+        sound = m_early_allpass_1.process(in);
+        sound = m_early_allpass_2.process(sound);
+        sound = m_early_allpass_3.process(sound);
+        sound = m_early_allpass_4.process(sound);
 
         sound += m_feedback;
 
-        m_dc_blocker.process(sound, sound);
+        sound = m_dc_blocker.process(sound);
 
-        m_allpass_1.process(sound, lfo_1, sound);
-        m_delay_1.process(sound, sound);
-        m_allpass_2.process(sound, sound);
-        m_delay_2.process(sound, sound);
+        sound = m_allpass_1.process(sound, lfo_1);
+        sound = m_delay_1.process(sound);
+        sound = m_allpass_2.process(sound);
+        sound = m_delay_2.process(sound);
 
-        m_hi_shelf_1.process(sound, sound);
+        sound = m_hi_shelf_1.process(sound);
         sound *= k;
 
-        m_allpass_3.process(sound, lfo_2, sound);
-        m_delay_3.process(sound, sound);
-        m_allpass_4.process(sound, sound);
-        m_delay_4.process(sound, sound);
+        sound = m_allpass_3.process(sound, lfo_2);
+        sound = m_delay_3.process(sound);
+        sound = m_allpass_4.process(sound);
+        sound = m_delay_4.process(sound);
 
-        m_hi_shelf_2.process(sound, sound);
+        m_hi_shelf_2.process(sound);
         sound *= k;
         m_feedback = sound;
 
         // Keep the inter-channel delays somewhere between 0.1 and 0.7 ms --
         // this allows the Haas effect to come in.
 
-        m_delay_1.tap(0, 0.5f, out_1);
-        m_delay_1.tap(0.750e-3f, 0.4f, out_2);
+        out_1 = 0.f;
+        out_2 = 0.f;
 
-        m_delay_2.tap(0, 0.8f, out_1);
-        m_delay_2.tap(0.712e-3f, 1.0f, out_2);
+        out_1 += m_delay_1.tap(0, 0.5f);
+        out_2 += m_delay_1.tap(0.750e-3f, 0.4f);
 
-        m_delay_3.tap(0.538e-3f, 0.4f, out_1);
-        m_delay_3.tap(0, 0.5f, out_2);
+        out_1 += m_delay_2.tap(0, 0.8f);
+        out_2 += m_delay_2.tap(0.712e-3f, 1.0f);
 
-        m_delay_4.tap(0.65e-3f, 0.8f, out_1);
-        m_delay_4.tap(0, 1.0f, out_2);
+        out_1 += m_delay_3.tap(0.538e-3f, 0.4f);
+        out_2 += m_delay_3.tap(0, 0.5f);
+
+        out_1 += m_delay_4.tap(0.65e-3f, 0.8f);
+        out_2 += m_delay_4.tap(0, 1.0f);
     }
 
 private:
