@@ -379,7 +379,7 @@ public:
         sound = m_allpass_4.process(sound);
         sound = m_delay_4.process(sound);
 
-        m_hi_shelf_2.process(sound);
+        sound = m_hi_shelf_2.process(sound);
         sound *= k;
         m_feedback = sound;
 
