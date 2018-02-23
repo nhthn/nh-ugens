@@ -6,7 +6,6 @@ include_directories(${SC_PATH}/include/plugin_interface)
 include_directories(${SC_PATH}/include/common)
 include_directories(${SC_PATH}/common)
 
-
 set(CMAKE_SHARED_MODULE_PREFIX "")
 if(APPLE OR WIN32)
 set(CMAKE_SHARED_MODULE_SUFFIX ".scx")
@@ -64,3 +63,5 @@ if(MINGW)
 endif()
 
 add_library("NHHall" MODULE "src/supercollider/NHHall.cpp")
+
+add_subdirectory(test)

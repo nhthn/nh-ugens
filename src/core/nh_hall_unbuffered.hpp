@@ -12,7 +12,7 @@ TODO:
 
 */
 
-namespace nh_ugens {
+namespace nh_ugens_unbuffered {
 
 static inline int next_power_of_two(int x) {
     int result = 1;
@@ -63,13 +63,11 @@ public:
         m_k = twopi * frequency / m_sample_rate;
     }
 
-    void process(float* cosine, float* sine) {
-        for (int i = 0; i < m_buffer_size; i++) {
-            m_cosine -= m_k * m_sine;
-            m_sine += m_k * m_cosine;
-            cosine[i] = m_cosine;
-            sine[i] = m_sine;
-        }
+    void process(float& cosine, float& sine) {
+        m_cosine -= m_k * m_sine;
+        m_sine += m_k * m_cosine;
+        cosine = m_cosine;
+        sine = m_sine;
     }
 };
 
@@ -94,14 +92,12 @@ public:
     // NOTE: This method must be written to permit "in" and "out" to be the
     // same buffer. That is, always read from "in" first and then write to
     // "out".
-    void process(const float* in, float* out) {
-        for (int i = 0; i < m_buffer_size; i++) {
-            float x = in[i];
-            float y = x - m_x1 + m_k * m_y1;
-            out[i] = y;
-            m_x1 = x;
-            m_y1 = y;
-        }
+    void process(float in, float& out) {
+        float x = in;
+        float y = x - m_x1 + m_k * m_y1;
+        out = y;
+        m_x1 = x;
+        m_y1 = y;
     }
 };
 
@@ -126,12 +122,10 @@ public:
     // NOTE: This method must be written to permit "in" and "out" to be the
     // same buffer. That is, always read from "in" first and then write to
     // "out".
-    void process(const float* in, float* out) {
-        for (int i = 0; i < m_buffer_size; i++) {
-            float x = in[i];
-            out[i] = (1 - m_k) * x + m_k * m_x1;
-            m_x1 = x;
-        }
+    void process(float in, float& out) {
+        float x = in;
+        out = (1 - m_k) * x + m_k * m_x1;
+        m_x1 = x;
     }
 };
 
@@ -182,21 +176,17 @@ public:
 
     // NOTE: This method must be written to permit "in" and "out" to be the
     // same buffer. Always read from "in" first and then write to "out".
-    void process(const float* in, float* out) {
-        for (int i = 0; i < m_buffer_size; i++) {
-            float out_value = m_buffer[(m_read_position - m_delay_in_samples) & m_mask];
-            m_buffer[m_read_position] = in[i];
-            m_read_position = (m_read_position + 1) & m_mask;
-            out[i] = out_value;
-        }
+    void process(float in, float& out) {
+        float out_value = m_buffer[(m_read_position - m_delay_in_samples) & m_mask];
+        m_buffer[m_read_position] = in;
+        m_read_position = (m_read_position + 1) & m_mask;
+        out = out_value;
     }
 
-    void tap(float delay, float gain, float* out) {
+    void tap(float delay, float gain, float& out) {
         int delay_in_samples = delay * m_sample_rate;
-        for (int i = 0; i < m_buffer_size; i++) {
-            int position = m_read_position - m_buffer_size - delay_in_samples + i;
-            out[i] += gain * m_buffer[position & m_mask];
-        }
+        int position = m_read_position - m_buffer_size - delay_in_samples;
+        out += gain * m_buffer[position & m_mask];
     }
 };
 
@@ -218,15 +208,13 @@ public:
 
     // NOTE: This method must be written to permit "in" and "out" to be the
     // same buffer. Always read from "in" first and then write to "out".
-    void process(const float* in, float* out) {
-        for (int i = 0; i < m_buffer_size; i++) {
-            float delayed_signal = m_buffer[(m_read_position - m_delay_in_samples) & m_mask];
-            float feedback_plus_input =
-                in[i] + delayed_signal * m_k;
-            m_buffer[m_read_position] = feedback_plus_input;
-            m_read_position = (m_read_position + 1) & m_mask;
-            out[i] = feedback_plus_input * -m_k + delayed_signal;
-        }
+    void process(float in, float& out) {
+        float delayed_signal = m_buffer[(m_read_position - m_delay_in_samples) & m_mask];
+        float feedback_plus_input =
+            in + delayed_signal * m_k;
+        m_buffer[m_read_position] = feedback_plus_input;
+        m_read_position = (m_read_position + 1) & m_mask;
+        out = feedback_plus_input * -m_k + delayed_signal;
     }
 };
 
@@ -250,25 +238,23 @@ public:
     // NOTE: This method must be written to permit either of the inputs to be
     // identical to the output buffer. Always read from inputs first and then
     // write to outputs.
-    void process(const float* in, const float* offset, float* out) {
-        for (int i = 0; i < m_buffer_size; i++) {
-            float position = m_read_position - (m_delay + offset[i]) * m_sample_rate;
-            int iposition = position;
-            float position_frac = position - iposition;
+    void process(float in, float offset, float& out) {
+        float position = m_read_position - (m_delay + offset) * m_sample_rate;
+        int iposition = position;
+        float position_frac = position - iposition;
 
-            float y0 = m_buffer[iposition & m_mask];
-            float y1 = m_buffer[(iposition + 1) & m_mask];
-            float y2 = m_buffer[(iposition + 2) & m_mask];
-            float y3 = m_buffer[(iposition + 3) & m_mask];
+        float y0 = m_buffer[iposition & m_mask];
+        float y1 = m_buffer[(iposition + 1) & m_mask];
+        float y2 = m_buffer[(iposition + 2) & m_mask];
+        float y3 = m_buffer[(iposition + 3) & m_mask];
 
-            float delayed_signal = interpolate_cubic(position_frac, y0, y1, y2, y3);
+        float delayed_signal = interpolate_cubic(position_frac, y0, y1, y2, y3);
 
-            float feedback_plus_input =
-                in[i] + delayed_signal * m_k;
-            m_buffer[m_read_position] = feedback_plus_input;
-            m_read_position = (m_read_position + 1) & m_mask;
-            out[i] = feedback_plus_input * -m_k + delayed_signal;
-        }
+        float feedback_plus_input =
+            in + delayed_signal * m_k;
+        m_buffer[m_read_position] = feedback_plus_input;
+        m_read_position = (m_read_position + 1) & m_mask;
+        out = feedback_plus_input * -m_k + delayed_signal;
     }
 };
 
@@ -308,12 +294,7 @@ public:
     m_delay_4(sample_rate, buffer_size, 180.3e-3f)
 
     {
-        m_feedback = allocate_wire();
-        zero_wire(m_feedback);
-
-        m_wire_1 = allocate_wire();
-        m_wire_2 = allocate_wire();
-        m_wire_3 = allocate_wire();
+        m_feedback = 0.f;
 
         allocate_delay_line(m_early_allpass_1);
         allocate_delay_line(m_early_allpass_2);
@@ -331,10 +312,6 @@ public:
     }
 
     ~Unit() {
-        m_allocator->deallocate(m_feedback);
-        m_allocator->deallocate(m_wire_1);
-        m_allocator->deallocate(m_wire_2);
-        m_allocator->deallocate(m_wire_3);
 
         free_delay_line(m_early_allpass_1);
         free_delay_line(m_early_allpass_2);
@@ -356,9 +333,6 @@ public:
         return static_cast<float*>(memory);
     }
 
-    void zero_wire(float* wire) {
-        memset(wire, 0, sizeof(float) * m_buffer_size);
-    }
 
     void allocate_delay_line(BaseDelay& delay) {
         void* memory = m_allocator->allocate(sizeof(float) * delay.m_size);
@@ -370,44 +344,28 @@ public:
         m_allocator->deallocate(delay.m_buffer);
     }
 
-    void copy(float* in, float* out) {
-        std::memcpy(out, in, sizeof(float) * m_buffer_size);
-    }
-
-    void multiply(float* in, float k, float* out) {
-        for (int i = 0; i < m_buffer_size; i++) {
-            out[i] = in[i] * k;
-        }
-    }
-
-    void add(float* in_1, float* in_2, float* out) {
-        for (int i = 0; i < m_buffer_size; i++) {
-            out[i] = in_1[i] + in_2[i];
-        }
-    }
-
-    void process(const float* in, float* out_1, float* out_2) {
+    void process(float in, float& out_1, float& out_2) {
         float k = 0.8f;
 
         // LFO
-        float* lfo_1 = m_wire_2;
-        float* lfo_2 = m_wire_3;
+        float lfo_1 = m_wire_2;
+        float lfo_2 = m_wire_3;
 
         m_lfo.set_frequency(0.5f);
         m_lfo.process(lfo_1, lfo_2);
 
-        multiply(lfo_1, 0.32e-3f, lfo_1);
-        multiply(lfo_2, -0.45e-3f, lfo_2);
+        lfo_1 *= 0.32e-3f;
+        lfo_2 *= -0.45e-3f;
 
         // Sound signal path
-        float* sound = m_wire_1;
+        float sound = m_wire_1;
 
         m_early_allpass_1.process(in, sound);
         m_early_allpass_2.process(sound, sound);
         m_early_allpass_3.process(sound, sound);
         m_early_allpass_4.process(sound, sound);
 
-        add(m_feedback, sound, sound);
+        sound += m_feedback;
 
         m_dc_blocker.process(sound, sound);
 
@@ -417,7 +375,7 @@ public:
         m_delay_2.process(sound, sound);
 
         m_hi_shelf_1.process(sound, sound);
-        multiply(sound, k, sound);
+        sound *= k;
 
         m_allpass_3.process(sound, lfo_2, sound);
         m_delay_3.process(sound, sound);
@@ -425,13 +383,8 @@ public:
         m_delay_4.process(sound, sound);
 
         m_hi_shelf_2.process(sound, sound);
-        multiply(sound, k, sound);
-        copy(sound, m_feedback);
-
-        // Output taps
-
-        zero_wire(out_1);
-        zero_wire(out_2);
+        sound *= k;
+        m_feedback = sound;
 
         // Keep the inter-channel delays somewhere between 0.1 and 0.7 ms --
         // this allows the Haas effect to come in.
@@ -452,12 +405,10 @@ public:
 private:
     std::unique_ptr<Alloc> m_allocator;
 
-    // NOTE: When adding a new wire buffer, don't forget to allocate it in the
-    // constructor and free it in the destructor.
-    float* m_feedback;
-    float* m_wire_1;
-    float* m_wire_2;
-    float* m_wire_3;
+    float m_feedback = 0.f;
+    float m_wire_1 = 0.f;
+    float m_wire_2 = 0.f;
+    float m_wire_3 = 0.f;
 
     SineLFO m_lfo;
     DCBlocker m_dc_blocker;
@@ -483,4 +434,4 @@ private:
     Delay m_delay_4;
 };
 
-} // namespace nh_ugens
+} // namespace nh_ugens_unbuffered
