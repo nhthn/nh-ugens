@@ -25,7 +25,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org>
 */
 
-#include "../core/nh_hall_unbuffered.hpp"
+#include "../core/nh_hall.hpp"
 #include "SC_PlugIn.hpp"
 
 static InterfaceTable* ft;
@@ -85,7 +85,7 @@ public:
     }
 
 private:
-    nh_ugens_unbuffered::Unit<SCAllocator> m_core;
+    nh_ugens::Unit<SCAllocator> m_core;
 
     void clear(int inNumSamples) {
         ClearUnitOutputs(this, inNumSamples);
