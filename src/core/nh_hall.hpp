@@ -157,8 +157,6 @@ public:
     {
     }
 
-    // NOTE: This method must be written to permit "in" and "out" to be the
-    // same buffer. Always read from "in" first and then write to "out".
     float process(float in) {
         float out_value = m_buffer[(m_read_position - m_delay_in_samples) & m_mask];
         m_buffer[m_read_position] = in;
