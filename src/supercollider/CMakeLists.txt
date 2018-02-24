@@ -60,4 +60,4 @@ if(MINGW)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mstackrealign")
 endif()
 
-add_library("NHHall" MODULE "NHHall.cpp")
+add_library(nhugens_sc MODULE "NHHall.cpp")
