@@ -271,19 +271,19 @@ public:
     m_early_delay_4(sample_rate, 3.17e-3),
 
     // TODO: Maximum delays for variable allpasses are temporary.
-    m_allpass_1(sample_rate, 100e-3f, 25.6e-3f, -0.6f),
-    m_allpass_2(sample_rate, 41.4e-3f, 0.6f),
-    m_delay_1(sample_rate, 180.6e-3f),
-    m_allpass_3(sample_rate, 120e-3f, 40.7e-3f, 0.6f),
-    m_allpass_4(sample_rate, 35.6e-3f, -0.6f),
-    m_delay_2(sample_rate, 90.3e-3f),
+    m_allpass_1(sample_rate, 100e-3f, 25.6e-3f, -0.55f),
+    m_allpass_2(sample_rate, 41.4e-3f, 0.55f),
+    m_delay_1(sample_rate, 183.6e-3f),
+    m_allpass_3(sample_rate, 120e-3f, 50.7e-3f, 0.55f),
+    m_allpass_4(sample_rate, 25.6e-3f, -0.55f),
+    m_delay_2(sample_rate, 94.3e-3f),
 
-    m_allpass_5(sample_rate, 38.6e-3f, 0.6f),
-    m_allpass_6(sample_rate, 29.4e-3f, -0.6f),
-    m_delay_3(sample_rate, 150.6e-3f),
-    m_allpass_7(sample_rate, 15.7e-3f, 0.6f),
-    m_allpass_8(sample_rate, 23.6e-3f, -0.6f),
-    m_delay_4(sample_rate, 60.6e-3f)
+    m_allpass_5(sample_rate, 68.6e-3f, 0.55f),
+    m_allpass_6(sample_rate, 29.4e-3f, -0.55f),
+    m_delay_3(sample_rate, 157.6e-3f),
+    m_allpass_7(sample_rate, 45.7e-3f, 0.55f),
+    m_allpass_8(sample_rate, 23.6e-3f, -0.55f),
+    m_delay_4(sample_rate, 63.6e-3f)
 
     {
         m_feedback = 0.f;
