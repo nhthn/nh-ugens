@@ -262,13 +262,17 @@ public:
     m_hi_shelf_2(sample_rate),
 
     m_early_allpass_1(sample_rate, 14.5e-3f, 0.5f),
-    m_early_allpass_2(sample_rate, 13.0e-3f, 0.5f),
-    m_early_allpass_3(sample_rate, 7.8e-3f, 0.5f),
-    m_early_allpass_4(sample_rate, 6.2e-3f, 0.5f),
-    m_early_delay_1(sample_rate, 7.45e-3),
-    m_early_delay_2(sample_rate, 5.25e-3),
-    m_early_delay_3(sample_rate, 2.36e-3),
-    m_early_delay_4(sample_rate, 3.17e-3),
+    m_early_allpass_2(sample_rate, 6.0e-3f, 0.5f),
+    m_early_allpass_3(sample_rate, 12.8e-3f, 0.5f),
+    m_early_allpass_4(sample_rate, 7.2e-3f, 0.5f),
+    m_early_allpass_5(sample_rate, 13.5e-3f, 0.5f),
+    m_early_allpass_6(sample_rate, 8.0e-3f, 0.5f),
+    m_early_allpass_7(sample_rate, 16.8e-3f, 0.5f),
+    m_early_allpass_8(sample_rate, 10.2e-3f, 0.5f),
+    m_early_delay_1(sample_rate, 5.45e-3),
+    m_early_delay_2(sample_rate, 3.25e-3),
+    m_early_delay_3(sample_rate, 7.36e-3),
+    m_early_delay_4(sample_rate, 2.17e-3),
 
     // TODO: Maximum delays for variable allpasses are temporary.
     m_allpass_1(sample_rate, 100e-3f, 25.6e-3f, -0.55f),
@@ -278,10 +282,10 @@ public:
     m_allpass_4(sample_rate, 25.6e-3f, -0.55f),
     m_delay_2(sample_rate, 94.3e-3f),
 
-    m_allpass_5(sample_rate, 68.6e-3f, 0.55f),
+    m_allpass_5(sample_rate, 100e-3f, 68.6e-3f, 0.55f),
     m_allpass_6(sample_rate, 29.4e-3f, -0.55f),
     m_delay_3(sample_rate, 157.6e-3f),
-    m_allpass_7(sample_rate, 45.7e-3f, 0.55f),
+    m_allpass_7(sample_rate, 100e-3f, 45.7e-3f, 0.55f),
     m_allpass_8(sample_rate, 23.6e-3f, -0.55f),
     m_delay_4(sample_rate, 63.6e-3f)
 
@@ -292,6 +296,10 @@ public:
         allocate_delay_line(m_early_allpass_2);
         allocate_delay_line(m_early_allpass_3);
         allocate_delay_line(m_early_allpass_4);
+        allocate_delay_line(m_early_allpass_5);
+        allocate_delay_line(m_early_allpass_6);
+        allocate_delay_line(m_early_allpass_7);
+        allocate_delay_line(m_early_allpass_8);
         allocate_delay_line(m_early_delay_1);
         allocate_delay_line(m_early_delay_2);
         allocate_delay_line(m_early_delay_3);
@@ -322,6 +330,10 @@ public:
         free_delay_line(m_early_allpass_2);
         free_delay_line(m_early_allpass_3);
         free_delay_line(m_early_allpass_4);
+        free_delay_line(m_early_allpass_5);
+        free_delay_line(m_early_allpass_6);
+        free_delay_line(m_early_allpass_7);
+        free_delay_line(m_early_allpass_8);
         free_delay_line(m_early_delay_1);
         free_delay_line(m_early_delay_2);
         free_delay_line(m_early_delay_3);
@@ -364,6 +376,9 @@ public:
         lfo_1 *= 0.32e-3f;
         lfo_2 *= -0.45e-3f;
 
+        ///////////////////////////////////////////////////////////////////////
+        // Early reflections
+
         // Sound signal path
         float left = in_1;
         float right = in_2;
@@ -372,18 +387,54 @@ public:
         float early_right = 0.f;
 
         left = m_early_allpass_1.process(left);
-        right = m_early_allpass_2.process(right);
+        left = m_early_allpass_2.process(left);
+        right = m_early_allpass_3.process(right);
+        right = m_early_allpass_4.process(right);
         std::tie(left, right) = rotate(left, right, 0.2f);
         early_left = left;
         early_right = right;
 
         left = m_early_delay_1.process(left);
-        left = m_early_allpass_3.process(left);
         right = m_early_delay_2.process(right);
-        right = m_early_allpass_4.process(right);
+
+        left = m_early_allpass_5.process(left);
+        left = m_early_allpass_6.process(left);
+        right = m_early_allpass_7.process(right);
+        right = m_early_allpass_8.process(right);
         std::tie(left, right) = rotate(left, right, 0.8f);
-        early_left += left;
-        early_right += right;
+        early_left += left * 0.5f;
+        early_right += right * 0.5f;
+
+        // Uncomment for early reflections only.
+        // return std::make_tuple(early_left, early_right);
+
+        // Uncomment for late reflections only.
+        // early_left = in_1;
+        // early_right = in_2;
+
+        ///////////////////////////////////////////////////////////////////////
+        // Output taps
+
+        // Keep the inter-channel delays somewhere between 0.1 and 0.7 ms --
+        // this allows the Haas effect to come in.
+
+        float out_1 = early_left * 0.5f;
+        float out_2 = early_right * 0.5f;
+
+        out_1 += m_delay_1.tap(0.0e-3f, 1.0f);
+        out_2 += m_delay_1.tap(0.1e-3f, -0.8f);
+
+        out_1 += m_delay_2.tap(0.5e-3f, -0.8f);
+        out_2 += m_delay_2.tap(0.0e-3f, 1.0f);
+
+        out_1 += m_delay_3.tap(0.0e-3f, 1.0f);
+        out_2 += m_delay_3.tap(0.7e-3f, -0.8f);
+
+        out_1 += m_delay_4.tap(0.2e-3f, -0.8f);
+        out_2 += m_delay_4.tap(0.0e-3f, 1.0f);
+
+        ///////////////////////////////////////////////////////////////////////
+        // Main reverb loop
 
         float sound = 0.f;
 
@@ -405,36 +456,18 @@ public:
         sound = m_hi_shelf_2.process(sound);
 
         sound += early_left;
-        sound = m_allpass_5.process(sound);
+        sound = m_allpass_5.process(sound, -lfo_1);
         sound = m_allpass_6.process(sound);
         sound *= k;
         sound = m_delay_3.process(sound);
 
         sound += early_right;
-        sound = m_allpass_7.process(sound);
+        sound = m_allpass_7.process(sound, -lfo_2);
         sound = m_allpass_8.process(sound);
         sound *= k;
         sound = m_delay_4.process(sound);
 
         m_feedback = sound;
-
-        // Keep the inter-channel delays somewhere between 0.1 and 0.7 ms --
-        // this allows the Haas effect to come in.
-
-        float out_1 = early_left;
-        float out_2 = early_right;
-
-        out_1 += m_delay_1.tap(0.0e-3f, 1.0f);
-        out_2 += m_delay_1.tap(0.1e-3f, 0.8f);
-
-        out_1 += m_delay_2.tap(0.5e-3f, 0.8f);
-        out_2 += m_delay_2.tap(0.0e-3f, 1.0f);
-
-        out_1 += m_delay_3.tap(0.0e-3f, 1.0f);
-        out_2 += m_delay_3.tap(0.7e-3f, 0.8f);
-
-        out_1 += m_delay_4.tap(0.2e-3f, 0.8f);
-        out_2 += m_delay_4.tap(0.0e-3f, 1.0f);
 
         return std::make_tuple(out_1, out_2);
     }
@@ -456,6 +489,10 @@ private:
     Allpass m_early_allpass_2;
     Allpass m_early_allpass_3;
     Allpass m_early_allpass_4;
+    Allpass m_early_allpass_5;
+    Allpass m_early_allpass_6;
+    Allpass m_early_allpass_7;
+    Allpass m_early_allpass_8;
     Delay m_early_delay_1;
     Delay m_early_delay_2;
     Delay m_early_delay_3;
@@ -469,11 +506,11 @@ private:
     Allpass m_allpass_4;
     Delay m_delay_2;
 
-    Allpass m_allpass_5;
+    VariableAllpass m_allpass_5;
     Allpass m_allpass_6;
     Delay m_delay_3;
 
-    Allpass m_allpass_7;
+    VariableAllpass m_allpass_7;
     Allpass m_allpass_8;
     Delay m_delay_4;
 };
