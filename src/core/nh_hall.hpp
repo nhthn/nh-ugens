@@ -272,16 +272,16 @@ public:
 
     // TODO: Maximum delays for variable allpasses are temporary.
     m_allpass_1(sample_rate, 100e-3f, 25.6e-3f, -0.6f),
-    m_allpass_2(sample_rate, 31.4e-3f, 0.6f),
+    m_allpass_2(sample_rate, 41.4e-3f, 0.6f),
     m_delay_1(sample_rate, 180.6e-3f),
     m_allpass_3(sample_rate, 120e-3f, 40.7e-3f, 0.6f),
     m_allpass_4(sample_rate, 35.6e-3f, -0.6f),
     m_delay_2(sample_rate, 90.3e-3f),
 
     m_allpass_5(sample_rate, 38.6e-3f, 0.6f),
-    m_allpass_6(sample_rate, 20.4e-3f, -0.6f),
+    m_allpass_6(sample_rate, 29.4e-3f, -0.6f),
     m_delay_3(sample_rate, 150.6e-3f),
-    m_allpass_7(sample_rate, 20.7e-3f, 0.6f),
+    m_allpass_7(sample_rate, 15.7e-3f, 0.6f),
     m_allpass_8(sample_rate, 23.6e-3f, -0.6f),
     m_delay_4(sample_rate, 60.6e-3f)
 
@@ -387,34 +387,34 @@ public:
 
         float sound = 0.f;
 
-        sound += m_feedback * 0.5f;
+        sound += m_feedback;
         sound = m_dc_blocker.process(sound);
 
         sound += early_left;
         sound = m_allpass_1.process(sound, lfo_1);
         sound = m_allpass_2.process(sound);
-        sound = m_delay_2.process(sound);
-        sound = m_hi_shelf_1.process(sound);
         sound *= k;
+        sound = m_delay_1.process(sound);
+        sound = m_hi_shelf_1.process(sound);
 
         sound += early_right;
         sound = m_allpass_3.process(sound, lfo_2);
         sound = m_allpass_4.process(sound);
+        sound *= k;
         sound = m_delay_2.process(sound);
         sound = m_hi_shelf_2.process(sound);
-        sound *= k;
 
         sound += early_left;
         sound = m_allpass_5.process(sound);
         sound = m_allpass_6.process(sound);
-        sound = m_delay_3.process(sound);
         sound *= k;
+        sound = m_delay_3.process(sound);
 
         sound += early_right;
         sound = m_allpass_7.process(sound);
         sound = m_allpass_8.process(sound);
-        sound = m_delay_4.process(sound);
         sound *= k;
+        sound = m_delay_4.process(sound);
 
         m_feedback = sound;
 
