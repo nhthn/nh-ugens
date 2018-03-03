@@ -1,5 +1,5 @@
 NHHall : MultiOutUGen {
-    *ar { |in, rt60 = 2|
+    *ar { |in|
         in = in.asArray;
         ^this.multiNew('audio', in.first, in.last);
     }

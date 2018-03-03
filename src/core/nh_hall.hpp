@@ -1,15 +1,15 @@
 #pragma once
-#include <cstring>
-#include <memory>
-#include <tuple>
+#include <cstring> // for memset
+#include <memory> // std::unique_ptr
+#include <tuple> // std::tuple
+#include <cmath> // cosf/sinf
 
 /*
 
 TODO:
 
-- Tap into the feedback loop in two places
+- Improve sound of early reflections
 - Adjust parameters to fix undulation in reverb tail
-- Add support for RT60 control
 
 */
 
@@ -26,6 +26,13 @@ static inline int next_power_of_two(int x) {
 // TODO: implement proper cubic interpolation. using linear for now
 static float interpolate_cubic(float x, float y0, float y1, float y2, float y3) {
     return y1 + (y2 - y1) * x;
+}
+
+static inline std::tuple<float, float> rotate(float x1, float x2, float angle) {
+    return std::make_tuple(
+        cosf(angle) * x1 - sinf(angle) * x2,
+        sinf(angle) * x1 + cosf(angle) * x2
+    );
 }
 
 constexpr float twopi = 6.283185307179586f;
@@ -254,20 +261,24 @@ public:
     m_hi_shelf_1(sample_rate),
     m_hi_shelf_2(sample_rate),
 
-    m_early_allpass_1(sample_rate, 3.5e-3f, 0.725f),
-    m_early_allpass_2(sample_rate, 5.0e-3f, 0.633f),
-    m_early_allpass_3(sample_rate, 8.5e-3f, 0.814f),
-    m_early_allpass_4(sample_rate, 10.2e-3f, 0.611f),
+    m_early_allpass_1(sample_rate, 14.5e-3f, 0.5f),
+    m_early_allpass_2(sample_rate, 13.0e-3f, 0.5f),
+    m_early_allpass_3(sample_rate, 7.8e-3f, 0.5f),
+    m_early_allpass_4(sample_rate, 6.2e-3f, 0.5f),
+    m_early_delay_1(sample_rate, 7.45e-3),
+    m_early_delay_2(sample_rate, 5.25e-3),
+    m_early_delay_3(sample_rate, 2.36e-3),
+    m_early_delay_4(sample_rate, 3.17e-3),
 
     // TODO: Maximum delays for variable allpasses are temporary.
     m_allpass_1(sample_rate, 100e-3f, 25.6e-3f, 0.55f),
     m_delay_1(sample_rate, 6.3e-3f),
     m_allpass_2(sample_rate, 31.4e-3f, 0.63f),
-    m_delay_2(sample_rate, 180.6e-3f),
+    m_delay_2(sample_rate, 120.6e-3f),
     m_allpass_3(sample_rate, 100e-3f, 40.7e-3f, 0.55f),
     m_delay_3(sample_rate, 8.2e-3f),
     m_allpass_4(sample_rate, 65.6e-3f, -0.63f),
-    m_delay_4(sample_rate, 180.3e-3f)
+    m_delay_4(sample_rate, 120.3e-3f)
 
     {
         m_feedback = 0.f;
@@ -276,6 +287,10 @@ public:
         allocate_delay_line(m_early_allpass_2);
         allocate_delay_line(m_early_allpass_3);
         allocate_delay_line(m_early_allpass_4);
+        allocate_delay_line(m_early_delay_1);
+        allocate_delay_line(m_early_delay_2);
+        allocate_delay_line(m_early_delay_3);
+        allocate_delay_line(m_early_delay_4);
 
         allocate_delay_line(m_allpass_1);
         allocate_delay_line(m_delay_1);
@@ -294,11 +309,14 @@ public:
     { }
 
     ~Unit() {
-
         free_delay_line(m_early_allpass_1);
         free_delay_line(m_early_allpass_2);
         free_delay_line(m_early_allpass_3);
         free_delay_line(m_early_allpass_4);
+        free_delay_line(m_early_delay_1);
+        free_delay_line(m_early_delay_2);
+        free_delay_line(m_early_delay_3);
+        free_delay_line(m_early_delay_4);
 
         free_delay_line(m_allpass_1);
         free_delay_line(m_delay_1);
@@ -320,7 +338,7 @@ public:
         m_allocator->deallocate(delay.m_buffer);
     }
 
-    std::tuple<float, float> process(float in) {
+    std::tuple<float, float> process(float in_1, float in_2) {
         float k = 0.8f;
 
         // LFO
@@ -334,18 +352,32 @@ public:
         lfo_2 *= -0.45e-3f;
 
         // Sound signal path
-        float early = in;
-        early = m_early_allpass_1.process(early);
-        early = m_early_allpass_2.process(early);
-        early = m_early_allpass_3.process(early);
-        early = m_early_allpass_4.process(early);
+        float left = in_1;
+        float right = in_2;
+
+        float early_left = 0.f;
+        float early_right = 0.f;
+
+        left = m_early_allpass_1.process(left);
+        right = m_early_allpass_2.process(right);
+        std::tie(left, right) = rotate(left, right, 0.2f);
+        early_left = left;
+        early_right = right;
+
+        left = m_early_delay_1.process(left);
+        left = m_early_allpass_3.process(left);
+        right = m_early_delay_2.process(right);
+        right = m_early_allpass_4.process(right);
+        std::tie(left, right) = rotate(left, right, 0.8f);
+        early_left += left;
+        early_right += right;
 
         float sound = 0.f;
 
-        sound += m_feedback;
+        sound += m_feedback * 0.5f;
         sound = m_dc_blocker.process(sound);
 
-        sound += early;
+        sound += early_left;
 
         sound = m_allpass_1.process(sound, lfo_1);
         sound = m_delay_1.process(sound);
@@ -355,7 +387,7 @@ public:
         sound = m_hi_shelf_1.process(sound);
         sound *= k;
 
-        sound += early;
+        sound += early_right;
 
         sound = m_allpass_3.process(sound, lfo_2);
         sound = m_delay_3.process(sound);
@@ -369,8 +401,8 @@ public:
         // Keep the inter-channel delays somewhere between 0.1 and 0.7 ms --
         // this allows the Haas effect to come in.
 
-        float out_1 = early;
-        float out_2 = early;
+        float out_1 = early_left;
+        float out_2 = early_right;
 
         // out_1 += m_delay_1.tap(0, 0.5f);
         // out_2 += m_delay_1.tap(0.450e-3f, 0.4f);
@@ -404,6 +436,10 @@ private:
     Allpass m_early_allpass_2;
     Allpass m_early_allpass_3;
     Allpass m_early_allpass_4;
+    Delay m_early_delay_1;
+    Delay m_early_delay_2;
+    Delay m_early_delay_3;
+    Delay m_early_delay_4;
 
     VariableAllpass m_allpass_1;
     Delay m_delay_1;

@@ -18,7 +18,7 @@ CK_DLL_QUERY(NHHall) {
     QUERY->add_ctor(QUERY, nhhall_ctor);
     QUERY->add_dtor(QUERY, nhhall_dtor);
 
-    QUERY->add_ugen_funcf(QUERY, nhhall_tickf, NULL, 1, 2);
+    QUERY->add_ugen_funcf(QUERY, nhhall_tickf, NULL, 2, 2);
 
     //QUERY->add_mfun(QUERY, nhhall_setFreq, "float", "freq");
     //QUERY->add_arg(QUERY, "float", "arg");
@@ -53,10 +53,11 @@ CK_DLL_TICKF(nhhall_tickf) {
     NHHallCore* core = (NHHallCore*)OBJ_MEMBER_INT(SELF, nhhall_core_offset);
 
     for (int i = 0; i < nframes; i++) {
-        float in_sample = in[i];
+        float in_left = in[i * 2 + 0];
+        float in_right = in[i * 2 + 1];
         float out_left;
         float out_right;
-        std::tie(out_left, out_right) = core->process(in_sample);
+        std::tie(out_left, out_right) = core->process(in_left, in_right);
         out[i * 2 + 0] = out_left;
         out[i * 2 + 1] = out_right;
     }

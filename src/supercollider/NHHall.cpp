@@ -80,13 +80,14 @@ private:
     }
 
     void next(int inNumSamples) {
-        const float* in1 = in(0);
+        const float* in_left = in(0);
+        const float* in_right = in(1);
         //const float* in2 = in(1);
-        float* out1 = out(0);
-        float* out2 = out(1);
+        float* out_left = out(0);
+        float* out_right = out(1);
 
         for (int i = 0; i < inNumSamples; i++) {
-            std::tie(out1[i], out2[i]) = m_core.process(in1[i]);
+            std::tie(out_left[i], out_right[i]) = m_core.process(in_left[i], in_right[i]);
         }
     }
 };
