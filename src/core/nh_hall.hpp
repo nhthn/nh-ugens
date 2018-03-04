@@ -8,7 +8,7 @@
 
 TODO:
 
-- Random modulation
+- Make late reflections true stereo
 - Add RT60 parameter
 - Improve damping
 - Adjust parameters to fix undulation in reverb tail
@@ -215,7 +215,7 @@ public:
 
     float tap(float delay, float gain) {
         int delay_in_samples = delay * m_sample_rate;
-        int position = m_read_position - delay_in_samples;
+        int position = m_read_position - 1 - delay_in_samples;
         float out = gain * m_buffer[position & m_mask];
         return out;
     }
@@ -405,7 +405,7 @@ public:
     }
 
     std::tuple<float, float> process(float in_1, float in_2) {
-        float k = 0.5f;
+        float k = 0.7f;
 
         // LFO
         float lfo_1;
@@ -463,7 +463,7 @@ public:
         float out_2 = early_right * 0.5f;
 
         out_1 += m_delay_1.tap(0.0e-3f, 1.0f);
-        out_2 += m_delay_1.tap(0.0e-3f, -0.8f);
+        out_2 += m_delay_1.tap(0.3e-3f, -0.8f);
 
         out_1 += m_delay_2.tap(0.5e-3f, -0.8f);
         out_2 += m_delay_2.tap(0.0e-3f, 1.0f);
@@ -496,17 +496,17 @@ public:
         sound = m_delay_2.process(sound);
         sound = m_hi_shelf_2.process(sound);
 
-        sound += early_left;
-        sound = m_allpass_5.process(sound, -lfo_1);
-        sound = m_allpass_6.process(sound);
-        sound *= k;
-        sound = m_delay_3.process(sound);
+        // sound += early_left;
+        // sound = m_allpass_5.process(sound, -lfo_1);
+        // sound = m_allpass_6.process(sound);
+        // sound *= k;
+        // sound = m_delay_3.process(sound);
 
-        sound += early_right;
-        sound = m_allpass_7.process(sound, -lfo_2);
-        sound = m_allpass_8.process(sound);
-        sound *= k;
-        sound = m_delay_4.process(sound);
+        // sound += early_right;
+        // sound = m_allpass_7.process(sound, -lfo_2);
+        // sound = m_allpass_8.process(sound);
+        // sound *= k;
+        // sound = m_delay_4.process(sound);
 
         m_feedback = sound;
 
