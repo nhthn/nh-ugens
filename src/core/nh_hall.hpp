@@ -8,8 +8,11 @@
 
 TODO:
 
-- Improve sound of early reflections
+- Random modulation
+- Add RT60 parameter
+- Improve damping
 - Adjust parameters to fix undulation in reverb tail
+- Implement cubic interpolation
 
 */
 
@@ -72,6 +75,44 @@ public:
         m_cosine -= m_k * m_sine;
         m_sine += m_k * m_cosine;
         return std::make_tuple(m_cosine, m_sine);
+    }
+};
+
+class RandomLFO {
+public:
+    const float m_sample_rate;
+    uint32_t m_lcg_state = 1;
+    int m_timeout = 0;
+
+    float m_increment = 0.f;
+    float m_phase = 0.f;
+    float m_frequency = 12.f;
+
+    RandomLFO(
+        float sample_rate
+    ) :
+    m_sample_rate(sample_rate)
+    {
+    }
+
+    inline uint16_t run_lcg(void) {
+        m_lcg_state = m_lcg_state * 22695477 + 1;
+        uint16_t state = m_lcg_state >> 16;
+        return state;
+    }
+
+    void set_frequency(float frequency) {
+        m_frequency = frequency;
+    }
+
+    std::tuple<float, float> process(void) {
+        if (m_timeout <= 0) {
+            m_timeout = (run_lcg() >> 3) * 3.0f / m_frequency;
+            m_increment = (run_lcg() / 32767.0f - 0.5f) / m_sample_rate * m_frequency;
+        }
+        m_timeout -= 1;
+        m_phase += m_increment;
+        return std::make_tuple(sin(m_phase), cos(m_phase));
     }
 };
 
@@ -364,17 +405,17 @@ public:
     }
 
     std::tuple<float, float> process(float in_1, float in_2) {
-        float k = 0.9f;
+        float k = 0.5f;
 
         // LFO
         float lfo_1;
         float lfo_2;
 
-        m_lfo.set_frequency(0.5f);
+        //m_lfo.set_frequency(0.5f);
         std::tie(lfo_1, lfo_2) = m_lfo.process();
 
-        lfo_1 *= 0.32e-3f;
-        lfo_2 *= -0.45e-3f;
+        lfo_1 *= 0.32e-3f * 0.5f;
+        lfo_2 *= -0.45e-3f * 0.5f;
 
         ///////////////////////////////////////////////////////////////////////
         // Early reflections
@@ -422,7 +463,7 @@ public:
         float out_2 = early_right * 0.5f;
 
         out_1 += m_delay_1.tap(0.0e-3f, 1.0f);
-        out_2 += m_delay_1.tap(0.1e-3f, -0.8f);
+        out_2 += m_delay_1.tap(0.0e-3f, -0.8f);
 
         out_1 += m_delay_2.tap(0.5e-3f, -0.8f);
         out_2 += m_delay_2.tap(0.0e-3f, 1.0f);
@@ -472,12 +513,16 @@ public:
         return std::make_tuple(out_1, out_2);
     }
 
+    // std::tuple<float, float> process(float in_1, float in_2) {
+    //     return m_lfo.process();
+    // }
+
 private:
     std::unique_ptr<Alloc> m_allocator;
 
     float m_feedback = 0.f;
 
-    SineLFO m_lfo;
+    RandomLFO m_lfo;
     DCBlocker m_dc_blocker;
 
     HiShelf m_hi_shelf_1;
