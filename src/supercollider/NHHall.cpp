@@ -70,10 +70,12 @@ public:
     {
         mCalcFunc = make_calc_function<UnitType, PointerToMember>();
         clear(1);
+        m_last_k = in0(2);
     }
 
 private:
     nh_ugens::Unit<SCAllocator> m_core;
+    float m_last_k;
 
     void clear(int inNumSamples) {
         ClearUnitOutputs(this, inNumSamples);
@@ -82,13 +84,19 @@ private:
     void next(int inNumSamples) {
         const float* in_left = in(0);
         const float* in_right = in(1);
-        //const float* in2 = in(1);
+        const float rt60 = in0(2);
         float* out_left = out(0);
         float* out_right = out(1);
 
+        float new_k = m_core.compute_k_from_rt60(rt60);
+        float k = m_last_k;
+        float k_ramp = (k - m_last_k) / inNumSamples;
         for (int i = 0; i < inNumSamples; i++) {
+            k += k_ramp;
+            m_core.m_k = k;
             std::tie(out_left[i], out_right[i]) = m_core.process(in_left[i], in_right[i]);
         }
+        m_last_k = new_k;
     }
 };
 

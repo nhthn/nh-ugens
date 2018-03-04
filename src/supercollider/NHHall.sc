@@ -1,7 +1,7 @@
 NHHall : MultiOutUGen {
-    *ar { |in|
+    *ar { |in, rt60 = 1|
         in = in.asArray;
-        ^this.multiNew('audio', in.first, in.last);
+        ^this.multiNew('audio', in.first, in.last, rt60);
     }
 
     init { arg ... theInputs;

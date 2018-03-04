@@ -8,8 +8,6 @@
 
 TODO:
 
-- Make late reflections true stereo
-- Add RT60 parameter
 - Improve damping
 - Adjust parameters to fix undulation in reverb tail
 - Implement cubic interpolation
@@ -289,6 +287,15 @@ template <class Alloc = Allocator>
 class Unit {
 public:
     const float m_sample_rate;
+    float m_k;
+
+    static constexpr float delay_time_1 = 183.6e-3f;
+    static constexpr float delay_time_2 = 94.3e-3f;
+    static constexpr float delay_time_3 = 157.6e-3f;
+    static constexpr float delay_time_4 = 63.6e-3f;
+
+    static constexpr float average_delay_time =
+        (delay_time_1 + delay_time_2 + delay_time_3 + delay_time_4) / 4.0f;
 
     Unit(
         float sample_rate,
@@ -318,20 +325,23 @@ public:
     // TODO: Maximum delays for variable allpasses are temporary.
     m_allpass_1(sample_rate, 100e-3f, 25.6e-3f, -0.55f),
     m_allpass_2(sample_rate, 41.4e-3f, 0.55f),
-    m_delay_1(sample_rate, 183.6e-3f),
+    m_delay_1(sample_rate, delay_time_1),
     m_allpass_3(sample_rate, 120e-3f, 50.7e-3f, 0.55f),
     m_allpass_4(sample_rate, 25.6e-3f, -0.55f),
-    m_delay_2(sample_rate, 94.3e-3f),
+    m_delay_2(sample_rate, delay_time_2),
 
     m_allpass_5(sample_rate, 100e-3f, 68.6e-3f, 0.55f),
     m_allpass_6(sample_rate, 29.4e-3f, -0.55f),
-    m_delay_3(sample_rate, 157.6e-3f),
+    m_delay_3(sample_rate, delay_time_3),
     m_allpass_7(sample_rate, 100e-3f, 45.7e-3f, 0.55f),
     m_allpass_8(sample_rate, 23.6e-3f, -0.55f),
-    m_delay_4(sample_rate, 63.6e-3f)
+    m_delay_4(sample_rate, delay_time_4)
 
     {
-        m_feedback = 0.f;
+        m_feedback_left = 0.f;
+        m_feedback_right = 0.f;
+
+        m_k = 0.0f;
 
         allocate_delay_line(m_early_allpass_1);
         allocate_delay_line(m_early_allpass_2);
@@ -394,32 +404,15 @@ public:
         free_delay_line(m_delay_4);
     }
 
-    void allocate_delay_line(BaseDelay& delay) {
-        void* memory = m_allocator->allocate(sizeof(float) * delay.m_size);
-        delay.m_buffer = static_cast<float*>(memory);
-        memset(delay.m_buffer, 0, sizeof(float) * delay.m_size);
+    inline float compute_k_from_rt60(float rt60) {
+        return powf(0.001f, average_delay_time / rt60);
     }
 
-    void free_delay_line(BaseDelay& delay) {
-        m_allocator->deallocate(delay.m_buffer);
+    inline void set_rt60(float rt60) {
+        m_k = compute_k_from_rt60(rt60);
     }
 
-    std::tuple<float, float> process(float in_1, float in_2) {
-        float k = 0.7f;
-
-        // LFO
-        float lfo_1;
-        float lfo_2;
-
-        //m_lfo.set_frequency(0.5f);
-        std::tie(lfo_1, lfo_2) = m_lfo.process();
-
-        lfo_1 *= 0.32e-3f * 0.5f;
-        lfo_2 *= -0.45e-3f * 0.5f;
-
-        ///////////////////////////////////////////////////////////////////////
-        // Early reflections
-
+    inline std::tuple<float, float> process_early(float in_1, float in_2) {
         // Sound signal path
         float left = in_1;
         float right = in_2;
@@ -446,12 +439,26 @@ public:
         early_left += left * 0.5f;
         early_right += right * 0.5f;
 
-        // Uncomment for early reflections only.
-        // return std::make_tuple(early_left, early_right);
+        return std::make_tuple(early_left, early_right);
+    }
 
-        // Uncomment for late reflections only.
-        // early_left = in_1;
-        // early_right = in_2;
+    std::tuple<float, float> process(float in_1, float in_2) {
+        // LFO
+        float lfo_1;
+        float lfo_2;
+
+        //m_lfo.set_frequency(0.5f);
+        std::tie(lfo_1, lfo_2) = m_lfo.process();
+
+        lfo_1 *= 0.32e-3f * 0.5f;
+        lfo_2 *= -0.45e-3f * 0.5f;
+
+        ///////////////////////////////////////////////////////////////////////
+        // Early reflections
+
+        float early_left;
+        float early_right;
+        std::tie(early_left, early_right) = process_early(in_1, in_2);
 
         ///////////////////////////////////////////////////////////////////////
         // Output taps
@@ -462,65 +469,71 @@ public:
         float out_1 = early_left * 0.5f;
         float out_2 = early_right * 0.5f;
 
+        float haas_multiplier = -0.8f;
+
         out_1 += m_delay_1.tap(0.0e-3f, 1.0f);
-        out_2 += m_delay_1.tap(0.3e-3f, -0.8f);
+        out_2 += m_delay_1.tap(0.3e-3f, haas_multiplier);
 
-        out_1 += m_delay_2.tap(0.5e-3f, -0.8f);
-        out_2 += m_delay_2.tap(0.0e-3f, 1.0f);
+        out_1 += m_delay_2.tap(0.0e-3f, 1.0f);
+        out_2 += m_delay_2.tap(0.1e-3f, haas_multiplier);
 
-        out_1 += m_delay_3.tap(0.0e-3f, 1.0f);
-        out_2 += m_delay_3.tap(0.7e-3f, -0.8f);
+        out_1 += m_delay_3.tap(0.7e-3f, haas_multiplier);
+        out_2 += m_delay_3.tap(0.0e-3f, 1.0f);
 
-        out_1 += m_delay_4.tap(0.2e-3f, -0.8f);
+        out_1 += m_delay_4.tap(0.2e-3f, haas_multiplier);
         out_2 += m_delay_4.tap(0.0e-3f, 1.0f);
 
         ///////////////////////////////////////////////////////////////////////
         // Main reverb loop
 
-        float sound = 0.f;
+        float left = 0.f;
 
-        sound += m_feedback;
-        sound = m_dc_blocker.process(sound);
+        left += m_feedback_left;
+        left = m_dc_blocker.process(left);
 
-        sound += early_left;
-        sound = m_allpass_1.process(sound, lfo_1);
-        sound = m_allpass_2.process(sound);
-        sound *= k;
-        sound = m_delay_1.process(sound);
-        sound = m_hi_shelf_1.process(sound);
+        left += early_left;
+        left = m_allpass_1.process(left, lfo_1);
+        left = m_allpass_2.process(left);
+        left *= m_k;
+        left = m_delay_1.process(left);
+        left = m_hi_shelf_1.process(left);
 
-        sound += early_right;
-        sound = m_allpass_3.process(sound, lfo_2);
-        sound = m_allpass_4.process(sound);
-        sound *= k;
-        sound = m_delay_2.process(sound);
-        sound = m_hi_shelf_2.process(sound);
+        left += early_left;
+        left = m_allpass_3.process(left, lfo_2);
+        left = m_allpass_4.process(left);
+        left *= m_k;
+        left = m_delay_2.process(left);
+        left = m_hi_shelf_2.process(left);
 
-        // sound += early_left;
-        // sound = m_allpass_5.process(sound, -lfo_1);
-        // sound = m_allpass_6.process(sound);
-        // sound *= k;
-        // sound = m_delay_3.process(sound);
+        float right = 0.f;
 
-        // sound += early_right;
-        // sound = m_allpass_7.process(sound, -lfo_2);
-        // sound = m_allpass_8.process(sound);
-        // sound *= k;
-        // sound = m_delay_4.process(sound);
+        right += m_feedback_right;
 
-        m_feedback = sound;
+        right += early_right;
+        right = m_allpass_5.process(right, -lfo_1);
+        right = m_allpass_6.process(right);
+        right *= m_k;
+        right = m_delay_3.process(right);
+
+        right += early_right;
+        right = m_allpass_7.process(right, -lfo_2);
+        right = m_allpass_8.process(right);
+        right *= m_k;
+        right = m_delay_4.process(right);
+
+        std::tie(left, right) = rotate(left, right, 0.6f);
+
+        m_feedback_left = left;
+        m_feedback_right = right;
 
         return std::make_tuple(out_1, out_2);
     }
 
-    // std::tuple<float, float> process(float in_1, float in_2) {
-    //     return m_lfo.process();
-    // }
-
 private:
     std::unique_ptr<Alloc> m_allocator;
 
-    float m_feedback = 0.f;
+    float m_feedback_left = 0.f;
+    float m_feedback_right = 0.f;
 
     RandomLFO m_lfo;
     DCBlocker m_dc_blocker;
@@ -558,6 +571,16 @@ private:
     VariableAllpass m_allpass_7;
     Allpass m_allpass_8;
     Delay m_delay_4;
+
+    void allocate_delay_line(BaseDelay& delay) {
+        void* memory = m_allocator->allocate(sizeof(float) * delay.m_size);
+        delay.m_buffer = static_cast<float*>(memory);
+        memset(delay.m_buffer, 0, sizeof(float) * delay.m_size);
+    }
+
+    void free_delay_line(BaseDelay& delay) {
+        m_allocator->deallocate(delay.m_buffer);
+    }
 };
 
 } // namespace nh_ugens
