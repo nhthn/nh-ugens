@@ -7,7 +7,7 @@
 /*
 TODO:
 
-- Replace damping with biquad shelving filters
+- Improve damping
 - Implement cubic interpolation
 - Modulate early reflections
 
@@ -53,18 +53,13 @@ public:
 // Quadrature sine LFO, not used.
 class SineLFO {
 public:
-    const float m_sample_rate;
-    float m_k;
-    float m_cosine;
-    float m_sine;
-
     SineLFO(
         float sample_rate
     ) :
-    m_sample_rate(sample_rate)
+    m_sample_rate(sample_rate),
+    m_cosine(1.0f),
+    m_sine(0.0f)
     {
-        m_cosine = 1.0;
-        m_sine = 0.0;
     }
 
     void set_frequency(float frequency) {
@@ -76,19 +71,17 @@ public:
         m_sine += m_k * m_cosine;
         return std::make_tuple(m_cosine, m_sine);
     }
+
+private:
+    const float m_sample_rate;
+    float m_k;
+    float m_cosine;
+    float m_sine;
 };
 
 // TODO: Sample-rate invariance is not established here.
 class RandomLFO {
 public:
-    const float m_sample_rate;
-    uint32_t m_lcg_state = 1;
-    int m_timeout = 0;
-
-    float m_increment = 0.f;
-    float m_phase = 0.f;
-    float m_frequency = 12.f;
-
     RandomLFO(
         float sample_rate
     ) :
@@ -115,16 +108,19 @@ public:
         m_phase += m_increment;
         return std::make_tuple(sin(m_phase), cos(m_phase));
     }
+
+private:
+    const float m_sample_rate;
+    uint32_t m_lcg_state = 1;
+    int m_timeout = 0;
+
+    float m_increment = 0.f;
+    float m_phase = 0.f;
+    float m_frequency = 12.f;
 };
 
 class DCBlocker {
 public:
-    const float m_sample_rate;
-
-    float m_x1 = 0.0f;
-    float m_y1 = 0.0f;
-    float m_k = 0.99f;
-
     DCBlocker(
         float sample_rate
     ) :
@@ -140,25 +136,23 @@ public:
         m_y1 = y;
         return out;
     }
+
+private:
+    const float m_sample_rate;
+
+    float m_x1 = 0.0f;
+    float m_y1 = 0.0f;
+    float m_k = 0.99f;
 };
 
 class HiShelf {
 public:
-    const float m_sample_rate;
-
-    float m_x1 = 0.0f;
-    float m_x2 = 0.0f;
-    float m_y1 = 0.0f;
-    float m_y2 = 0.0f;
-
-    float m_b0, m_b1, m_b2, m_a0, m_a1, m_a2;
-
     HiShelf(
         float sample_rate
     ) :
     m_sample_rate(sample_rate)
     {
-        set_frequency_and_gain(3000.0f, -1.0f);
+        set_frequency_and_gain(3000.0f, -5.0f);
     }
 
     float set_frequency_and_gain(float frequency, float gain) {
@@ -187,19 +181,20 @@ public:
         m_y1 = out;
         return out;
     }
+
+private:
+    const float m_sample_rate;
+    float m_x1 = 0.0f;
+    float m_x2 = 0.0f;
+    float m_y1 = 0.0f;
+    float m_y2 = 0.0f;
+    float m_b0, m_b1, m_b2, m_a0, m_a1, m_a2;
 };
 
 class BaseDelay {
 public:
-    const float m_sample_rate;
-
     int m_size;
-    int m_mask;
     float* m_buffer;
-    int m_read_position;
-
-    float m_delay;
-    int m_delay_in_samples;
 
     BaseDelay(
         float sample_rate,
@@ -217,6 +212,13 @@ public:
         m_delay = delay;
         m_delay_in_samples = m_sample_rate * delay;
     }
+
+protected:
+    const float m_sample_rate;
+    int m_mask;
+    int m_read_position;
+    float m_delay;
+    int m_delay_in_samples;
 };
 
 // Fixed delay line.
@@ -249,8 +251,6 @@ public:
 // Fixed Schroeder allpass.
 class Allpass : public BaseDelay {
 public:
-    float m_k;
-
     Allpass(
         float sample_rate,
         float delay,
@@ -270,13 +270,14 @@ public:
         float out = feedback_plus_input * -m_k + delayed_signal;
         return out;
     }
+
+private:
+    float m_k;
 };
 
 // Schroeder allpass with variable delay and cubic interpolation.
 class VariableAllpass : public BaseDelay {
 public:
-    float m_k;
-
     VariableAllpass(
         float sample_rate,
         float max_delay,
@@ -308,21 +309,15 @@ public:
 
         return out;
     }
+
+private:
+    float m_k;
 };
 
 template <class Alloc = Allocator>
 class Unit {
 public:
-    const float m_sample_rate;
     float m_k;
-
-    static constexpr float delay_time_1 = 183.6e-3f;
-    static constexpr float delay_time_2 = 94.3e-3f;
-    static constexpr float delay_time_3 = 157.6e-3f;
-    static constexpr float delay_time_4 = 63.6e-3f;
-
-    static constexpr float average_delay_time =
-        (delay_time_1 + delay_time_2 + delay_time_3 + delay_time_4) / 4.0f;
 
     Unit(
         float sample_rate,
@@ -562,6 +557,16 @@ public:
 
 private:
     std::unique_ptr<Alloc> m_allocator;
+
+    const float m_sample_rate;
+
+    static constexpr float delay_time_1 = 183.6e-3f;
+    static constexpr float delay_time_2 = 94.3e-3f;
+    static constexpr float delay_time_3 = 157.6e-3f;
+    static constexpr float delay_time_4 = 63.6e-3f;
+
+    static constexpr float average_delay_time =
+        (delay_time_1 + delay_time_2 + delay_time_3 + delay_time_4) / 4.0f;
 
     float m_feedback_left = 0.f;
     float m_feedback_right = 0.f;
