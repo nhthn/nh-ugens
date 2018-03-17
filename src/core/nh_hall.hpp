@@ -5,12 +5,11 @@
 #include <cmath> // cosf/sinf
 
 /*
-
 TODO:
 
-- Improve damping
-- Adjust parameters to fix undulation in reverb tail
+- Replace damping with biquad shelving filters
 - Implement cubic interpolation
+- Modulate early reflections
 
 */
 
@@ -29,6 +28,7 @@ static float interpolate_cubic(float x, float y0, float y1, float y2, float y3) 
     return y1 + (y2 - y1) * x;
 }
 
+// Unitary rotation matrix. Angle is given in radians.
 static inline std::tuple<float, float> rotate(float x1, float x2, float angle) {
     return std::make_tuple(
         cosf(angle) * x1 - sinf(angle) * x2,
@@ -38,6 +38,7 @@ static inline std::tuple<float, float> rotate(float x1, float x2, float angle) {
 
 constexpr float twopi = 6.283185307179586f;
 
+// Default allocator -- not real-time safe!
 class Allocator {
 public:
     void* allocate(int memory_size) {
@@ -49,6 +50,7 @@ public:
     }
 };
 
+// Quadrature sine LFO, not used.
 class SineLFO {
 public:
     const float m_sample_rate;
@@ -76,6 +78,7 @@ public:
     }
 };
 
+// TODO: Sample-rate invariance is not established here.
 class RandomLFO {
 public:
     const float m_sample_rate;
@@ -144,20 +147,44 @@ public:
     const float m_sample_rate;
 
     float m_x1 = 0.0f;
-    // TODO: Make this sample-rate invariant
-    float m_k = 0.3f;
+    float m_x2 = 0.0f;
+    float m_y1 = 0.0f;
+    float m_y2 = 0.0f;
+
+    float m_b0, m_b1, m_b2, m_a0, m_a1, m_a2;
 
     HiShelf(
         float sample_rate
     ) :
     m_sample_rate(sample_rate)
     {
+        set_frequency_and_gain(440.0f, -10.0f);
+    }
+
+    float set_frequency_and_gain(float frequency, float gain) {
+        float w0 = twopi * frequency / m_sample_rate;
+        float sin_w0 = sinf(w0);
+        float cos_w0 = cosf(w0);
+        float a = powf(10.0f, gain / 40.0f);
+        float s = 1.0f;
+        float alpha = sin_w0 * 0.5 * sqrtf((a + 1 / a) * (1 / s - 1) + 2);
+        float x = 2 * sqrtf(a) * alpha;
+        float a0 = (a + 1) - (a - 1) * cos_w0 + x;
+        m_b0 = (a * ((a + 1) + (a - 1) * cos_w0 + x)) / a0;
+        m_b1 = (-2 * a * ((a - 1) + (a + 1) * cos_w0)) / a0;
+        m_b2 = (a * ((a + 1) + (a - 1) * cos_w0 - x)) / a0;
+        m_a1 = (2 * ((a - 1) - (a + 1) * cos_w0)) / a0;
+        m_a2 = ((a + 1) - (a - 1) * cos_w0 - x) / a0;
     }
 
     float process(float in) {
-        float x = in;
-        float out = (1 - m_k) * x + m_k * m_x1;
-        m_x1 = x;
+        float out =
+            m_b0 * in + m_b1 * m_x1 + m_b2 * m_x2
+            - m_a1 * m_y1 - m_a2 * m_y2;
+        m_x2 = m_x1;
+        m_x1 = in;
+        m_y2 = m_y1;
+        m_y1 = out;
         return out;
     }
 };
@@ -308,6 +335,8 @@ public:
     m_dc_blocker(sample_rate),
     m_hi_shelf_1(sample_rate),
     m_hi_shelf_2(sample_rate),
+    m_hi_shelf_3(sample_rate),
+    m_hi_shelf_4(sample_rate),
 
     m_early_allpass_1(sample_rate, 14.5e-3f, 0.5f),
     m_early_allpass_2(sample_rate, 6.0e-3f, 0.5f),
@@ -514,12 +543,14 @@ public:
         right = m_allpass_6.process(right);
         right *= m_k;
         right = m_delay_3.process(right);
+        right = m_hi_shelf_3.process(right);
 
         right += early_right;
         right = m_allpass_7.process(right, -lfo_2);
         right = m_allpass_8.process(right);
         right *= m_k;
         right = m_delay_4.process(right);
+        right = m_hi_shelf_4.process(right);
 
         std::tie(left, right) = rotate(left, right, 0.6f);
 
@@ -540,6 +571,8 @@ private:
 
     HiShelf m_hi_shelf_1;
     HiShelf m_hi_shelf_2;
+    HiShelf m_hi_shelf_3;
+    HiShelf m_hi_shelf_4;
 
     // NOTE: When adding a new delay unit of some kind, don't forget to
     // allocate the memory in the constructor and free it in the destructor.

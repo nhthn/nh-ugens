@@ -30,6 +30,7 @@ For more information, please refer to <http://unlicense.org>
 
 static InterfaceTable* ft;
 
+// FIXME: throwing exceptions is not real-time safe!!!
 class real_time_allocation_failed : public std::exception { };
 
 class SCAllocator {
