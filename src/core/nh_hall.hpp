@@ -158,7 +158,7 @@ public:
     ) :
     m_sample_rate(sample_rate)
     {
-        set_frequency_and_gain(440.0f, -10.0f);
+        set_frequency_and_gain(3000.0f, -1.0f);
     }
 
     float set_frequency_and_gain(float frequency, float gain) {
