@@ -2,6 +2,7 @@
 #include <cstring> // for memset
 #include <memory> // std::unique_ptr
 #include <tuple> // std::tuple
+#include <array> // std::array
 #include <cmath> // cosf/sinf
 
 /*
@@ -384,14 +385,18 @@ public:
     m_hi_shelf_3(sample_rate),
     m_hi_shelf_4(sample_rate),
 
-    m_early_allpass_1(sample_rate, 14.5e-3f, 0.5f),
-    m_early_allpass_2(sample_rate, 6.0e-3f, 0.5f),
-    m_early_allpass_3(sample_rate, 12.8e-3f, 0.5f),
-    m_early_allpass_4(sample_rate, 7.2e-3f, 0.5f),
-    m_early_allpass_5(sample_rate, 13.5e-3f, 0.5f),
-    m_early_allpass_6(sample_rate, 8.0e-3f, 0.5f),
-    m_early_allpass_7(sample_rate, 16.8e-3f, 0.5f),
-    m_early_allpass_8(sample_rate, 10.2e-3f, 0.5f),
+    // Double curly braces are required in C++11.
+    m_early_allpasses {{
+        Allpass(sample_rate, 14.5e-3f, 0.5f),
+        Allpass(sample_rate, 6.0e-3f, 0.5f),
+        Allpass(sample_rate, 12.8e-3f, 0.5f),
+        Allpass(sample_rate, 7.2e-3f, 0.5f),
+        Allpass(sample_rate, 13.5e-3f, 0.5f),
+        Allpass(sample_rate, 8.0e-3f, 0.5f),
+        Allpass(sample_rate, 16.8e-3f, 0.5f),
+        Allpass(sample_rate, 10.2e-3f, 0.5f)
+    }},
+
     m_early_delay_1(sample_rate, 5.45e-3),
     m_early_delay_2(sample_rate, 3.25e-3),
     m_early_delay_3(sample_rate, 7.36e-3),
@@ -400,16 +405,16 @@ public:
     // TODO: Maximum delays for variable allpasses are temporary.
     m_allpass_1(sample_rate, 100e-3f, 25.6e-3f, -0.55f),
     m_allpass_2(sample_rate, 41.4e-3f, 0.55f),
-    m_delay_1(sample_rate, delay_time_1),
     m_allpass_3(sample_rate, 120e-3f, 50.7e-3f, 0.55f),
     m_allpass_4(sample_rate, 25.6e-3f, -0.55f),
-    m_delay_2(sample_rate, delay_time_2),
-
     m_allpass_5(sample_rate, 100e-3f, 68.6e-3f, 0.55f),
     m_allpass_6(sample_rate, 29.4e-3f, -0.55f),
-    m_delay_3(sample_rate, delay_time_3),
     m_allpass_7(sample_rate, 100e-3f, 45.7e-3f, 0.55f),
     m_allpass_8(sample_rate, 23.6e-3f, -0.55f),
+
+    m_delay_1(sample_rate, delay_time_1),
+    m_delay_2(sample_rate, delay_time_2),
+    m_delay_3(sample_rate, delay_time_3),
     m_delay_4(sample_rate, delay_time_4)
 
     {
@@ -418,14 +423,9 @@ public:
 
         m_k = 0.0f;
 
-        allocate_delay_line(m_early_allpass_1);
-        allocate_delay_line(m_early_allpass_2);
-        allocate_delay_line(m_early_allpass_3);
-        allocate_delay_line(m_early_allpass_4);
-        allocate_delay_line(m_early_allpass_5);
-        allocate_delay_line(m_early_allpass_6);
-        allocate_delay_line(m_early_allpass_7);
-        allocate_delay_line(m_early_allpass_8);
+        for (auto& allpass : m_early_allpasses) {
+            allocate_delay_line(allpass);
+        }
         allocate_delay_line(m_early_delay_1);
         allocate_delay_line(m_early_delay_2);
         allocate_delay_line(m_early_delay_3);
@@ -452,14 +452,9 @@ public:
     { }
 
     ~Unit() {
-        free_delay_line(m_early_allpass_1);
-        free_delay_line(m_early_allpass_2);
-        free_delay_line(m_early_allpass_3);
-        free_delay_line(m_early_allpass_4);
-        free_delay_line(m_early_allpass_5);
-        free_delay_line(m_early_allpass_6);
-        free_delay_line(m_early_allpass_7);
-        free_delay_line(m_early_allpass_8);
+        for (auto& allpass : m_early_allpasses) {
+            free_delay_line(allpass);
+        }
         free_delay_line(m_early_delay_1);
         free_delay_line(m_early_delay_2);
         free_delay_line(m_early_delay_3);
@@ -495,10 +490,10 @@ public:
         float early_left = 0.f;
         float early_right = 0.f;
 
-        left = m_early_allpass_1.process(left);
-        left = m_early_allpass_2.process(left);
-        right = m_early_allpass_3.process(right);
-        right = m_early_allpass_4.process(right);
+        left = m_early_allpasses[0].process(left);
+        left = m_early_allpasses[1].process(left);
+        right = m_early_allpasses[2].process(right);
+        right = m_early_allpasses[3].process(right);
         std::tie(left, right) = rotate(left, right, 0.2f);
         early_left = left;
         early_right = right;
@@ -506,10 +501,10 @@ public:
         left = m_early_delay_1.process(left);
         right = m_early_delay_2.process(right);
 
-        left = m_early_allpass_5.process(left);
-        left = m_early_allpass_6.process(left);
-        right = m_early_allpass_7.process(right);
-        right = m_early_allpass_8.process(right);
+        left = m_early_allpasses[4].process(left);
+        left = m_early_allpasses[5].process(left);
+        right = m_early_allpasses[6].process(right);
+        right = m_early_allpasses[7].process(right);
         std::tie(left, right) = rotate(left, right, 0.8f);
         early_left += left * 0.5f;
         early_right += right * 0.5f;
@@ -641,14 +636,8 @@ private:
 
     // NOTE: When adding a new delay unit of some kind, don't forget to
     // allocate the memory in the constructor and free it in the destructor.
-    Allpass m_early_allpass_1;
-    Allpass m_early_allpass_2;
-    Allpass m_early_allpass_3;
-    Allpass m_early_allpass_4;
-    Allpass m_early_allpass_5;
-    Allpass m_early_allpass_6;
-    Allpass m_early_allpass_7;
-    Allpass m_early_allpass_8;
+
+    std::array<Allpass, 8> m_early_allpasses;
     Delay m_early_delay_1;
     Delay m_early_delay_2;
     Delay m_early_delay_3;
