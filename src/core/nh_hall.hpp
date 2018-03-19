@@ -91,8 +91,8 @@ public:
 
     inline uint16_t run_lcg(void) {
         m_lcg_state = m_lcg_state * 22695477 + 1;
-        uint16_t state = m_lcg_state >> 16;
-        return state;
+        uint16_t result = m_lcg_state >> 16;
+        return result;
     }
 
     void set_frequency(float frequency) {
@@ -102,7 +102,7 @@ public:
     std::tuple<float, float> process(void) {
         if (m_timeout <= 0) {
             m_timeout = (run_lcg() >> 3) * 3.0f / m_frequency;
-            m_increment = (run_lcg() / 32767.0f - 0.5f) / m_sample_rate * m_frequency;
+            m_increment = (run_lcg() * (1.0f / 32767.0f) - 0.5f) / m_sample_rate * m_frequency;
         }
         m_timeout -= 1;
         m_phase += m_increment;
@@ -152,7 +152,7 @@ public:
     ) :
     m_sample_rate(sample_rate)
     {
-        set_frequency_and_gain(3000.0f, -5.0f);
+        set_frequency_and_gain(3000.0f, -2.0f);
     }
 
     float set_frequency_and_gain(float frequency, float gain) {
@@ -190,6 +190,53 @@ private:
     float m_y2 = 0.0f;
     float m_b0, m_b1, m_b2, m_a0, m_a1, m_a2;
 };
+
+class LowShelf {
+public:
+    LowShelf(
+        float sample_rate
+    ) :
+    m_sample_rate(sample_rate)
+    {
+        set_frequency_and_gain(150.0f, -2.0f);
+    }
+
+    float set_frequency_and_gain(float frequency, float gain) {
+        float w0 = twopi * frequency / m_sample_rate;
+        float sin_w0 = sinf(w0);
+        float cos_w0 = cosf(w0);
+        float a = powf(10.0f, gain / 40.0f);
+        float s = 1.0f;
+        float alpha = sin_w0 * 0.5 * sqrtf((a + 1 / a) * (1 / s - 1) + 2);
+        float x = 2 * sqrtf(a) * alpha;
+        float a0 = (a + 1) + (a - 1) * cos_w0 + x;
+        m_b0 = (a * ((a + 1) - (a - 1) * cos_w0 + x)) / a0;
+        m_b1 = (2 * a * ((a - 1) - (a + 1) * cos_w0)) / a0;
+        m_b2 = (a * ((a + 1) - (a - 1) * cos_w0 - x)) / a0;
+        m_a1 = (-2 * ((a - 1) + (a + 1) * cos_w0)) / a0;
+        m_a2 = ((a + 1) + (a - 1) * cos_w0 - x) / a0;
+    }
+
+    float process(float in) {
+        float out =
+            m_b0 * in + m_b1 * m_x1 + m_b2 * m_x2
+            - m_a1 * m_y1 - m_a2 * m_y2;
+        m_x2 = m_x1;
+        m_x1 = in;
+        m_y2 = m_y1;
+        m_y1 = out;
+        return out;
+    }
+
+private:
+    const float m_sample_rate;
+    float m_x1 = 0.0f;
+    float m_x2 = 0.0f;
+    float m_y1 = 0.0f;
+    float m_y2 = 0.0f;
+    float m_b0, m_b1, m_b2, m_a0, m_a1, m_a2;
+};
+
 
 class BaseDelay {
 public:
@@ -328,6 +375,10 @@ public:
 
     m_lfo(sample_rate),
     m_dc_blocker(sample_rate),
+    m_low_shelf_1(sample_rate),
+    m_low_shelf_2(sample_rate),
+    m_low_shelf_3(sample_rate),
+    m_low_shelf_4(sample_rate),
     m_hi_shelf_1(sample_rate),
     m_hi_shelf_2(sample_rate),
     m_hi_shelf_3(sample_rate),
@@ -513,13 +564,14 @@ public:
         float left = 0.f;
 
         left += m_feedback_left;
-        left = m_dc_blocker.process(left);
+        //left = m_dc_blocker.process(left);
 
         left += early_left;
         left = m_allpass_1.process(left, lfo_1);
         left = m_allpass_2.process(left);
         left *= m_k;
         left = m_delay_1.process(left);
+        left = m_low_shelf_1.process(left);
         left = m_hi_shelf_1.process(left);
 
         left += early_left;
@@ -527,6 +579,7 @@ public:
         left = m_allpass_4.process(left);
         left *= m_k;
         left = m_delay_2.process(left);
+        left = m_low_shelf_2.process(left);
         left = m_hi_shelf_2.process(left);
 
         float right = 0.f;
@@ -538,6 +591,7 @@ public:
         right = m_allpass_6.process(right);
         right *= m_k;
         right = m_delay_3.process(right);
+        right = m_low_shelf_3.process(right);
         right = m_hi_shelf_3.process(right);
 
         right += early_right;
@@ -545,6 +599,7 @@ public:
         right = m_allpass_8.process(right);
         right *= m_k;
         right = m_delay_4.process(right);
+        right = m_low_shelf_4.process(right);
         right = m_hi_shelf_4.process(right);
 
         std::tie(left, right) = rotate(left, right, 0.6f);
@@ -573,6 +628,11 @@ private:
 
     RandomLFO m_lfo;
     DCBlocker m_dc_blocker;
+
+    LowShelf m_low_shelf_1;
+    LowShelf m_low_shelf_2;
+    LowShelf m_low_shelf_3;
+    LowShelf m_low_shelf_4;
 
     HiShelf m_hi_shelf_1;
     HiShelf m_hi_shelf_2;
