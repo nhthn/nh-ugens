@@ -376,14 +376,9 @@ public:
 
     m_lfo(sample_rate),
     m_dc_blocker(sample_rate),
-    m_low_shelf_1(sample_rate),
-    m_low_shelf_2(sample_rate),
-    m_low_shelf_3(sample_rate),
-    m_low_shelf_4(sample_rate),
-    m_hi_shelf_1(sample_rate),
-    m_hi_shelf_2(sample_rate),
-    m_hi_shelf_3(sample_rate),
-    m_hi_shelf_4(sample_rate),
+
+    m_low_shelves {{ sample_rate, sample_rate, sample_rate, sample_rate }},
+    m_hi_shelves {{ sample_rate, sample_rate, sample_rate, sample_rate }},
 
     // Double curly braces are required in C++11.
     m_early_allpasses {{
@@ -397,25 +392,34 @@ public:
         Allpass(sample_rate, 10.2e-3f, 0.5f)
     }},
 
-    m_early_delay_1(sample_rate, 5.45e-3),
-    m_early_delay_2(sample_rate, 3.25e-3),
-    m_early_delay_3(sample_rate, 7.36e-3),
-    m_early_delay_4(sample_rate, 2.17e-3),
+    m_early_delays {{
+        Delay(sample_rate, 5.45e-3),
+        Delay(sample_rate, 3.25e-3),
+        Delay(sample_rate, 7.36e-3),
+        Delay(sample_rate, 2.17e-3)
+    }},
 
     // TODO: Maximum delays for variable allpasses are temporary.
-    m_allpass_1(sample_rate, 100e-3f, 25.6e-3f, -0.55f),
-    m_allpass_2(sample_rate, 41.4e-3f, 0.55f),
-    m_allpass_3(sample_rate, 120e-3f, 50.7e-3f, 0.55f),
-    m_allpass_4(sample_rate, 25.6e-3f, -0.55f),
-    m_allpass_5(sample_rate, 100e-3f, 68.6e-3f, 0.55f),
-    m_allpass_6(sample_rate, 29.4e-3f, -0.55f),
-    m_allpass_7(sample_rate, 100e-3f, 45.7e-3f, 0.55f),
-    m_allpass_8(sample_rate, 23.6e-3f, -0.55f),
+    m_late_variable_allpasses {{
+        VariableAllpass(sample_rate, 100e-3f, 25.6e-3f, -0.55f),
+        VariableAllpass(sample_rate, 120e-3f, 50.7e-3f, 0.55f),
+        VariableAllpass(sample_rate, 100e-3f, 68.6e-3f, 0.55f),
+        VariableAllpass(sample_rate, 100e-3f, 45.7e-3f, 0.55f)
+    }},
 
-    m_delay_1(sample_rate, delay_time_1),
-    m_delay_2(sample_rate, delay_time_2),
-    m_delay_3(sample_rate, delay_time_3),
-    m_delay_4(sample_rate, delay_time_4)
+    m_late_allpasses {{
+        Allpass(sample_rate, 41.4e-3f, 0.55f),
+        Allpass(sample_rate, 25.6e-3f, -0.55f),
+        Allpass(sample_rate, 29.4e-3f, -0.55f),
+        Allpass(sample_rate, 23.6e-3f, -0.55f)
+    }},
+
+    m_late_delays {{
+        Delay(sample_rate, delay_time_1),
+        Delay(sample_rate, delay_time_2),
+        Delay(sample_rate, delay_time_3),
+        Delay(sample_rate, delay_time_4)
+    }}
 
     {
         m_feedback_left = 0.f;
@@ -423,26 +427,21 @@ public:
 
         m_k = 0.0f;
 
-        for (auto& allpass : m_early_allpasses) {
-            allocate_delay_line(allpass);
+        for (auto& x : m_early_allpasses) {
+            allocate_delay_line(x);
         }
-        allocate_delay_line(m_early_delay_1);
-        allocate_delay_line(m_early_delay_2);
-        allocate_delay_line(m_early_delay_3);
-        allocate_delay_line(m_early_delay_4);
-
-        allocate_delay_line(m_allpass_1);
-        allocate_delay_line(m_allpass_2);
-        allocate_delay_line(m_allpass_3);
-        allocate_delay_line(m_allpass_4);
-        allocate_delay_line(m_allpass_5);
-        allocate_delay_line(m_allpass_6);
-        allocate_delay_line(m_allpass_7);
-        allocate_delay_line(m_allpass_8);
-        allocate_delay_line(m_delay_1);
-        allocate_delay_line(m_delay_2);
-        allocate_delay_line(m_delay_3);
-        allocate_delay_line(m_delay_4);
+        for (auto& x : m_early_delays) {
+            allocate_delay_line(x);
+        }
+        for (auto& x : m_late_variable_allpasses) {
+            allocate_delay_line(x);
+        }
+        for (auto& x : m_late_allpasses) {
+            allocate_delay_line(x);
+        }
+        for (auto& x : m_late_delays) {
+            allocate_delay_line(x);
+        }
     }
 
     Unit(
@@ -455,23 +454,18 @@ public:
         for (auto& allpass : m_early_allpasses) {
             free_delay_line(allpass);
         }
-        free_delay_line(m_early_delay_1);
-        free_delay_line(m_early_delay_2);
-        free_delay_line(m_early_delay_3);
-        free_delay_line(m_early_delay_4);
-
-        free_delay_line(m_allpass_1);
-        free_delay_line(m_allpass_2);
-        free_delay_line(m_allpass_3);
-        free_delay_line(m_allpass_4);
-        free_delay_line(m_allpass_5);
-        free_delay_line(m_allpass_6);
-        free_delay_line(m_allpass_7);
-        free_delay_line(m_allpass_8);
-        free_delay_line(m_delay_1);
-        free_delay_line(m_delay_2);
-        free_delay_line(m_delay_3);
-        free_delay_line(m_delay_4);
+        for (auto& x : m_early_delays) {
+            free_delay_line(x);
+        }
+        for (auto& x : m_late_variable_allpasses) {
+            free_delay_line(x);
+        }
+        for (auto& x : m_late_allpasses) {
+            free_delay_line(x);
+        }
+        for (auto& x : m_late_delays) {
+            free_delay_line(x);
+        }
     }
 
     inline float compute_k_from_rt60(float rt60) {
@@ -498,8 +492,8 @@ public:
         early_left = left;
         early_right = right;
 
-        left = m_early_delay_1.process(left);
-        right = m_early_delay_2.process(right);
+        left = m_early_delays[0].process(left);
+        right = m_early_delays[1].process(right);
 
         left = m_early_allpasses[4].process(left);
         left = m_early_allpasses[5].process(left);
@@ -541,17 +535,17 @@ public:
 
         float haas_multiplier = -0.8f;
 
-        out_1 += m_delay_1.tap(0.0e-3f, 1.0f);
-        out_2 += m_delay_1.tap(0.3e-3f, haas_multiplier);
+        out_1 += m_late_delays[0].tap(0.0e-3f, 1.0f);
+        out_2 += m_late_delays[0].tap(0.3e-3f, haas_multiplier);
 
-        out_1 += m_delay_2.tap(0.0e-3f, 1.0f);
-        out_2 += m_delay_2.tap(0.1e-3f, haas_multiplier);
+        out_1 += m_late_delays[1].tap(0.0e-3f, 1.0f);
+        out_2 += m_late_delays[1].tap(0.1e-3f, haas_multiplier);
 
-        out_1 += m_delay_3.tap(0.7e-3f, haas_multiplier);
-        out_2 += m_delay_3.tap(0.0e-3f, 1.0f);
+        out_1 += m_late_delays[2].tap(0.7e-3f, haas_multiplier);
+        out_2 += m_late_delays[2].tap(0.0e-3f, 1.0f);
 
-        out_1 += m_delay_4.tap(0.2e-3f, haas_multiplier);
-        out_2 += m_delay_4.tap(0.0e-3f, 1.0f);
+        out_1 += m_late_delays[3].tap(0.2e-3f, haas_multiplier);
+        out_2 += m_late_delays[3].tap(0.0e-3f, 1.0f);
 
         ///////////////////////////////////////////////////////////////////////
         // Main reverb loop
@@ -562,40 +556,40 @@ public:
         //left = m_dc_blocker.process(left);
 
         left += early_left;
-        left = m_allpass_1.process(left, lfo_1);
-        left = m_allpass_2.process(left);
+        left = m_late_variable_allpasses[0].process(left, lfo_1);
+        left = m_late_allpasses[0].process(left);
         left *= m_k;
-        left = m_delay_1.process(left);
-        left = m_low_shelf_1.process(left);
-        left = m_hi_shelf_1.process(left);
+        left = m_late_delays[0].process(left);
+        left = m_low_shelves[0].process(left);
+        left = m_hi_shelves[0].process(left);
 
         left += early_left;
-        left = m_allpass_3.process(left, lfo_2);
-        left = m_allpass_4.process(left);
+        left = m_late_variable_allpasses[1].process(left, lfo_2);
+        left = m_late_allpasses[1].process(left);
         left *= m_k;
-        left = m_delay_2.process(left);
-        left = m_low_shelf_2.process(left);
-        left = m_hi_shelf_2.process(left);
+        left = m_late_delays[1].process(left);
+        left = m_low_shelves[1].process(left);
+        left = m_hi_shelves[1].process(left);
 
         float right = 0.f;
 
         right += m_feedback_right;
 
         right += early_right;
-        right = m_allpass_5.process(right, -lfo_1);
-        right = m_allpass_6.process(right);
+        right = m_late_variable_allpasses[2].process(right, -lfo_1);
+        right = m_late_allpasses[2].process(right);
         right *= m_k;
-        right = m_delay_3.process(right);
-        right = m_low_shelf_3.process(right);
-        right = m_hi_shelf_3.process(right);
+        right = m_late_delays[2].process(right);
+        right = m_low_shelves[2].process(right);
+        right = m_hi_shelves[2].process(right);
 
         right += early_right;
-        right = m_allpass_7.process(right, -lfo_2);
-        right = m_allpass_8.process(right);
+        right = m_late_variable_allpasses[3].process(right, -lfo_2);
+        right = m_late_allpasses[3].process(right);
         right *= m_k;
-        right = m_delay_4.process(right);
-        right = m_low_shelf_4.process(right);
-        right = m_hi_shelf_4.process(right);
+        right = m_late_delays[3].process(right);
+        right = m_low_shelves[3].process(right);
+        right = m_hi_shelves[3].process(right);
 
         std::tie(left, right) = rotate(left, right, 0.6f);
 
@@ -624,40 +618,17 @@ private:
     RandomLFO m_lfo;
     DCBlocker m_dc_blocker;
 
-    LowShelf m_low_shelf_1;
-    LowShelf m_low_shelf_2;
-    LowShelf m_low_shelf_3;
-    LowShelf m_low_shelf_4;
+    std::array<LowShelf, 4> m_low_shelves;
+    std::array<HiShelf, 4> m_hi_shelves;
 
-    HiShelf m_hi_shelf_1;
-    HiShelf m_hi_shelf_2;
-    HiShelf m_hi_shelf_3;
-    HiShelf m_hi_shelf_4;
-
-    // NOTE: When adding a new delay unit of some kind, don't forget to
-    // allocate the memory in the constructor and free it in the destructor.
-
+    // NOTE: When adding new delay units, don't forget to allocate the memory
+    // in the constructor and free it in the destructor.
     std::array<Allpass, 8> m_early_allpasses;
-    Delay m_early_delay_1;
-    Delay m_early_delay_2;
-    Delay m_early_delay_3;
-    Delay m_early_delay_4;
+    std::array<Delay, 4> m_early_delays;
 
-    VariableAllpass m_allpass_1;
-    Allpass m_allpass_2;
-    Delay m_delay_1;
-
-    VariableAllpass m_allpass_3;
-    Allpass m_allpass_4;
-    Delay m_delay_2;
-
-    VariableAllpass m_allpass_5;
-    Allpass m_allpass_6;
-    Delay m_delay_3;
-
-    VariableAllpass m_allpass_7;
-    Allpass m_allpass_8;
-    Delay m_delay_4;
+    std::array<VariableAllpass, 4> m_late_variable_allpasses;
+    std::array<Allpass, 4> m_late_allpasses;
+    std::array<Delay, 4> m_late_delays;
 
     void allocate_delay_line(BaseDelay& delay) {
         void* memory = m_allocator->allocate(sizeof(float) * delay.m_size);
