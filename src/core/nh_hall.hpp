@@ -368,6 +368,7 @@ private:
     float m_k;
 };
 
+/* NHHall allows you to pass in a memory allocator of your choice. */
 template <class Alloc = Allocator>
 class Unit {
 public:
@@ -488,7 +489,7 @@ public:
         sig[1] = m_early_allpasses[2].process(sig[1]);
         sig[1] = m_early_allpasses[3].process(sig[1]);
         sig = rotate(sig, 0.2f);
-        Stereo early = {{sig[0], sig[1]}};
+        Stereo early = sig;
 
         sig[0] = m_early_delays[0].process(sig[0]);
         sig[1] = m_early_delays[1].process(sig[1]);
