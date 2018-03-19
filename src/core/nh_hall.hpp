@@ -382,10 +382,8 @@ public:
     m_lfo(sample_rate),
     m_dc_blocker(sample_rate),
 
-    // Double curly braces are required for std::array initializers in C++11.
-
-    m_low_shelves {{ sample_rate, sample_rate, sample_rate, sample_rate }},
-    m_hi_shelves {{ sample_rate, sample_rate, sample_rate, sample_rate }},
+    m_low_shelves {{sample_rate, sample_rate, sample_rate, sample_rate}},
+    m_hi_shelves {{sample_rate, sample_rate, sample_rate, sample_rate}},
 
     m_early_allpasses {{
         Allpass(sample_rate, 14.5e-3f, 0.5f),
@@ -456,8 +454,8 @@ public:
     { }
 
     ~Unit() {
-        for (auto& allpass : m_early_allpasses) {
-            free_delay_line(allpass);
+        for (auto& x : m_early_allpasses) {
+            free_delay_line(x);
         }
         for (auto& x : m_early_delays) {
             free_delay_line(x);
@@ -577,7 +575,6 @@ public:
     }
 
     Stereo process(Stereo in) {
-        // LFO
         Stereo lfo = m_lfo.process();
         lfo[0] *= 0.32e-3f * 0.5f;
         lfo[1] *= -0.45e-3f * 0.5f;
