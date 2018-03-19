@@ -8,7 +8,11 @@ void find_rt60(float k, float time) {
     core.m_k = k;
 
     float left, right;
-    std::tie(left, right) = core.process(1.0f, 1.0f);
+    {
+        std::array<float, 2> out = core.process(1.0f, 1.0f);
+        left = out[0];
+        right = out[1];
+    }
 
     float max_time = 50.0;
     int max_time_in_samples = sample_rate * max_time;
@@ -16,7 +20,9 @@ void find_rt60(float k, float time) {
 
     int timer = 0;
     for (int i = 0; i < max_time_in_samples; i++) {
-        std::tie(left, right) = core.process(0.0f, 0.0f);
+        std::array<float, 2> out = core.process(0.0f, 0.0f);
+        float left = out[0];
+        float right = out[1];
         float power = (left * left + right * right) * 0.5f;
         if (power >= 1e-6f) {
             timer = 0;

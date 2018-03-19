@@ -1,20 +1,22 @@
 #pragma once
 #include <cstring> // for memset
 #include <memory> // std::unique_ptr
-#include <tuple> // std::tuple
 #include <array> // std::array
 #include <cmath> // cosf/sinf
 
 /*
 TODO:
 
-- Improve damping
+- Make shelving filter parameters user-modulatable
+- Improve handling of denormals
 - Implement cubic interpolation
 - Modulate early reflections
 
 */
 
 namespace nh_ugens {
+
+typedef std::array<float, 2> Stereo;
 
 static inline int next_power_of_two(int x) {
     int result = 1;
@@ -30,11 +32,12 @@ static float interpolate_cubic(float x, float y0, float y1, float y2, float y3) 
 }
 
 // Unitary rotation matrix. Angle is given in radians.
-static inline std::tuple<float, float> rotate(float x1, float x2, float angle) {
-    return std::make_tuple(
-        cosf(angle) * x1 - sinf(angle) * x2,
-        sinf(angle) * x1 + cosf(angle) * x2
-    );
+static inline Stereo rotate(Stereo x, float angle) {
+    Stereo result = {
+        cosf(angle) * x[0] - sinf(angle) * x[1],
+        sinf(angle) * x[0] + cosf(angle) * x[1]
+    };
+    return result;
 }
 
 constexpr float twopi = 6.283185307179586f;
@@ -67,10 +70,11 @@ public:
         m_k = twopi * frequency / m_sample_rate;
     }
 
-    std::tuple<float, float> process(void) {
+    Stereo process(void) {
         m_cosine -= m_k * m_sine;
         m_sine += m_k * m_cosine;
-        return std::make_tuple(m_cosine, m_sine);
+        Stereo out = {{m_cosine, m_sine}};
+        return out;
     }
 
 private:
@@ -100,14 +104,15 @@ public:
         m_frequency = frequency;
     }
 
-    std::tuple<float, float> process(void) {
+    Stereo process(void) {
         if (m_timeout <= 0) {
             m_timeout = (run_lcg() >> 3) * 3.0f / m_frequency;
             m_increment = (run_lcg() * (1.0f / 32767.0f) - 0.5f) / m_sample_rate * m_frequency;
         }
         m_timeout -= 1;
         m_phase += m_increment;
-        return std::make_tuple(sin(m_phase), cos(m_phase));
+        Stereo result = {{sinf(m_phase), cosf(m_phase)}};
+        return result;
     }
 
 private:
@@ -377,10 +382,11 @@ public:
     m_lfo(sample_rate),
     m_dc_blocker(sample_rate),
 
+    // Double curly braces are required for std::array initializers in C++11.
+
     m_low_shelves {{ sample_rate, sample_rate, sample_rate, sample_rate }},
     m_hi_shelves {{ sample_rate, sample_rate, sample_rate, sample_rate }},
 
-    // Double curly braces are required in C++11.
     m_early_allpasses {{
         Allpass(sample_rate, 14.5e-3f, 0.5f),
         Allpass(sample_rate, 6.0e-3f, 0.5f),
@@ -422,9 +428,6 @@ public:
     }}
 
     {
-        m_feedback_left = 0.f;
-        m_feedback_right = 0.f;
-
         m_k = 0.0f;
 
         for (auto& x : m_early_allpasses) {
@@ -444,6 +447,8 @@ public:
         }
     }
 
+    // If no allocator object is passed in, we try to make one ourselves by
+    // calling the constructor with no arguments.
     Unit(
         float sample_rate
     ) :
@@ -476,127 +481,124 @@ public:
         m_k = compute_k_from_rt60(rt60);
     }
 
-    inline std::tuple<float, float> process_early(float in_1, float in_2) {
-        // Sound signal path
-        float left = in_1;
-        float right = in_2;
+    inline Stereo process_early(Stereo in) {
+        Stereo sig = {{in[0], in[1]}};
 
-        float early_left = 0.f;
-        float early_right = 0.f;
+        sig[0] = m_early_allpasses[0].process(sig[0]);
+        sig[0] = m_early_allpasses[1].process(sig[0]);
+        sig[1] = m_early_allpasses[2].process(sig[1]);
+        sig[1] = m_early_allpasses[3].process(sig[1]);
+        sig = rotate(sig, 0.2f);
+        Stereo early = {{sig[0], sig[1]}};
 
-        left = m_early_allpasses[0].process(left);
-        left = m_early_allpasses[1].process(left);
-        right = m_early_allpasses[2].process(right);
-        right = m_early_allpasses[3].process(right);
-        std::tie(left, right) = rotate(left, right, 0.2f);
-        early_left = left;
-        early_right = right;
+        sig[0] = m_early_delays[0].process(sig[0]);
+        sig[1] = m_early_delays[1].process(sig[1]);
 
-        left = m_early_delays[0].process(left);
-        right = m_early_delays[1].process(right);
+        sig[0] = m_early_allpasses[4].process(sig[0]);
+        sig[0] = m_early_allpasses[5].process(sig[0]);
+        sig[1] = m_early_allpasses[6].process(sig[1]);
+        sig[1] = m_early_allpasses[7].process(sig[1]);
+        sig = rotate(sig, 0.8f);
+        early[0] += sig[0] * 0.5f;
+        early[1] += sig[1] * 0.5f;
 
-        left = m_early_allpasses[4].process(left);
-        left = m_early_allpasses[5].process(left);
-        right = m_early_allpasses[6].process(right);
-        right = m_early_allpasses[7].process(right);
-        std::tie(left, right) = rotate(left, right, 0.8f);
-        early_left += left * 0.5f;
-        early_right += right * 0.5f;
-
-        return std::make_tuple(early_left, early_right);
+        return early;
     }
 
-    std::tuple<float, float> process(float in_1, float in_2) {
-        // LFO
-        float lfo_1;
-        float lfo_2;
+    inline float process_late_left(float early_left, Stereo lfo) {
+        float sig = 0.f;
 
-        //m_lfo.set_frequency(0.5f);
-        std::tie(lfo_1, lfo_2) = m_lfo.process();
+        sig += m_feedback[0];
 
-        lfo_1 *= 0.32e-3f * 0.5f;
-        lfo_2 *= -0.45e-3f * 0.5f;
+        sig += early_left;
+        sig = m_late_variable_allpasses[0].process(sig, -lfo[0]);
+        sig = m_late_allpasses[0].process(sig);
+        sig *= m_k;
+        sig = m_late_delays[0].process(sig);
+        sig = m_low_shelves[0].process(sig);
+        sig = m_hi_shelves[0].process(sig);
 
-        ///////////////////////////////////////////////////////////////////////
-        // Early reflections
+        sig += early_left;
+        sig = m_late_variable_allpasses[1].process(sig, -lfo[1]);
+        sig = m_late_allpasses[1].process(sig);
+        sig *= m_k;
+        sig = m_late_delays[1].process(sig);
+        sig = m_low_shelves[1].process(sig);
+        sig = m_hi_shelves[1].process(sig);
 
-        float early_left;
-        float early_right;
-        std::tie(early_left, early_right) = process_early(in_1, in_2);
+        return sig;
+    }
 
-        ///////////////////////////////////////////////////////////////////////
-        // Output taps
+    inline float process_late_right(float early_right, Stereo lfo) {
+        float sig = 0.f;
 
+        sig += m_feedback[1];
+
+        sig += early_right;
+        sig = m_late_variable_allpasses[2].process(sig, -lfo[0]);
+        sig = m_late_allpasses[2].process(sig);
+        sig *= m_k;
+        sig = m_late_delays[2].process(sig);
+        sig = m_low_shelves[2].process(sig);
+        sig = m_hi_shelves[2].process(sig);
+
+        sig += early_right;
+        sig = m_late_variable_allpasses[3].process(sig, -lfo[1]);
+        sig = m_late_allpasses[3].process(sig);
+        sig *= m_k;
+        sig = m_late_delays[3].process(sig);
+        sig = m_low_shelves[3].process(sig);
+        sig = m_hi_shelves[3].process(sig);
+
+        return sig;
+    }
+
+    inline Stereo process_outputs(Stereo early) {
         // Keep the inter-channel delays somewhere between 0.1 and 0.7 ms --
         // this allows the Haas effect to come in.
 
-        float out_1 = early_left * 0.5f;
-        float out_2 = early_right * 0.5f;
+        Stereo out = {{early[0] * 0.5f, early[1] * 0.5f}};
 
         float haas_multiplier = -0.8f;
 
-        out_1 += m_late_delays[0].tap(0.0e-3f, 1.0f);
-        out_2 += m_late_delays[0].tap(0.3e-3f, haas_multiplier);
+        out[0] += m_late_delays[0].tap(0.0e-3f, 1.0f);
+        out[1] += m_late_delays[0].tap(0.3e-3f, haas_multiplier);
 
-        out_1 += m_late_delays[1].tap(0.0e-3f, 1.0f);
-        out_2 += m_late_delays[1].tap(0.1e-3f, haas_multiplier);
+        out[0] += m_late_delays[1].tap(0.0e-3f, 1.0f);
+        out[1] += m_late_delays[1].tap(0.1e-3f, haas_multiplier);
 
-        out_1 += m_late_delays[2].tap(0.7e-3f, haas_multiplier);
-        out_2 += m_late_delays[2].tap(0.0e-3f, 1.0f);
+        out[0] += m_late_delays[2].tap(0.7e-3f, haas_multiplier);
+        out[1] += m_late_delays[2].tap(0.0e-3f, 1.0f);
 
-        out_1 += m_late_delays[3].tap(0.2e-3f, haas_multiplier);
-        out_2 += m_late_delays[3].tap(0.0e-3f, 1.0f);
+        out[0] += m_late_delays[3].tap(0.2e-3f, haas_multiplier);
+        out[1] += m_late_delays[3].tap(0.0e-3f, 1.0f);
 
-        ///////////////////////////////////////////////////////////////////////
-        // Main reverb loop
+        return out;
+    }
 
-        float left = 0.f;
+    Stereo process(Stereo in) {
+        // LFO
+        Stereo lfo = m_lfo.process();
+        lfo[0] *= 0.32e-3f * 0.5f;
+        lfo[1] *= -0.45e-3f * 0.5f;
 
-        left += m_feedback_left;
-        //left = m_dc_blocker.process(left);
+        Stereo early = process_early(in);
 
-        left += early_left;
-        left = m_late_variable_allpasses[0].process(left, lfo_1);
-        left = m_late_allpasses[0].process(left);
-        left *= m_k;
-        left = m_late_delays[0].process(left);
-        left = m_low_shelves[0].process(left);
-        left = m_hi_shelves[0].process(left);
+        Stereo out = process_outputs(early);
 
-        left += early_left;
-        left = m_late_variable_allpasses[1].process(left, lfo_2);
-        left = m_late_allpasses[1].process(left);
-        left *= m_k;
-        left = m_late_delays[1].process(left);
-        left = m_low_shelves[1].process(left);
-        left = m_hi_shelves[1].process(left);
+        Stereo late = {{
+            process_late_left(early[0], lfo),
+            process_late_right(early[1], lfo)
+        }};
+        late = rotate(late, 0.6f);
+        m_feedback = late;
 
-        float right = 0.f;
+        return out;
+    }
 
-        right += m_feedback_right;
-
-        right += early_right;
-        right = m_late_variable_allpasses[2].process(right, -lfo_1);
-        right = m_late_allpasses[2].process(right);
-        right *= m_k;
-        right = m_late_delays[2].process(right);
-        right = m_low_shelves[2].process(right);
-        right = m_hi_shelves[2].process(right);
-
-        right += early_right;
-        right = m_late_variable_allpasses[3].process(right, -lfo_2);
-        right = m_late_allpasses[3].process(right);
-        right *= m_k;
-        right = m_late_delays[3].process(right);
-        right = m_low_shelves[3].process(right);
-        right = m_hi_shelves[3].process(right);
-
-        std::tie(left, right) = rotate(left, right, 0.6f);
-
-        m_feedback_left = left;
-        m_feedback_right = right;
-
-        return std::make_tuple(out_1, out_2);
+    Stereo process(float in_left, float in_right) {
+        Stereo in = {{in_left, in_right}};
+        return process(in);
     }
 
 private:
@@ -612,8 +614,7 @@ private:
     static constexpr float average_delay_time =
         (delay_time_1 + delay_time_2 + delay_time_3 + delay_time_4) / 4.0f;
 
-    float m_feedback_left = 0.f;
-    float m_feedback_right = 0.f;
+    Stereo m_feedback = {{0.f, 0.f}};
 
     RandomLFO m_lfo;
     DCBlocker m_dc_blocker;

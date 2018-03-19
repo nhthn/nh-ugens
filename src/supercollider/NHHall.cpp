@@ -95,7 +95,9 @@ private:
         for (int i = 0; i < inNumSamples; i++) {
             k += k_ramp;
             m_core.m_k = k;
-            std::tie(out_left[i], out_right[i]) = m_core.process(in_left[i], in_right[i]);
+            std::array<float, 2> result = m_core.process(in_left[i], in_right[i]);
+            out_left[i] = result[0];
+            out_right[i] = result[1];
         }
         m_last_k = new_k;
     }

@@ -68,7 +68,9 @@ CK_DLL_TICKF(nhhall_tickf) {
         float in_right = in[i * 2 + 1];
         float out_left;
         float out_right;
-        std::tie(out_left, out_right) = unit->m_core.process(in_left, in_right);
+        std::array<float, 2> out = unit->m_core.process(in_left, in_right);
+        out_left = out[0];
+        out_right = out[1];
         out[i * 2 + 0] = out_left;
         out[i * 2 + 1] = out_right;
     }
