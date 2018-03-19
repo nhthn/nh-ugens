@@ -7,11 +7,10 @@
 /*
 TODO:
 
-- Make shelving filter parameters user-modulatable
+- Modulate early reflections
+- Add missing user parameters
 - Improve handling of denormals
 - Implement cubic interpolation
-- Modulate early reflections
-
 */
 
 namespace nh_ugens {
@@ -32,6 +31,7 @@ static float interpolate_cubic(float x, float y0, float y1, float y2, float y3) 
 }
 
 // Unitary rotation matrix. Angle is given in radians.
+// TODO: optimize
 static inline Stereo rotate(Stereo x, float angle) {
     Stereo result = {
         cosf(angle) * x[0] - sinf(angle) * x[1],
@@ -111,6 +111,7 @@ public:
         }
         m_timeout -= 1;
         m_phase += m_increment;
+        // TODO: optimize
         Stereo result = {{sinf(m_phase), cosf(m_phase)}};
         return result;
     }
