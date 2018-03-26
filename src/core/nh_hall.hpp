@@ -159,23 +159,23 @@ public:
     ) :
     m_sample_rate(sample_rate)
     {
-        set_frequency_and_gain(3000.0f, -2.0f);
     }
 
-    float set_frequency_and_gain(float frequency, float gain) {
+    float set_parameters(float frequency, float ratio) {
         float w0 = twopi * frequency / m_sample_rate;
         float sin_w0 = sinf(w0);
         float cos_w0 = cosf(w0);
-        float a = powf(10.0f, gain / 40.0f);
+        float a = sqrtf(ratio);
         float s = 1.0f;
         float alpha = sin_w0 * 0.5 * sqrtf((a + 1 / a) * (1 / s - 1) + 2);
         float x = 2 * sqrtf(a) * alpha;
         float a0 = (a + 1) - (a - 1) * cos_w0 + x;
-        m_b0 = (a * ((a + 1) + (a - 1) * cos_w0 + x)) / a0;
-        m_b1 = (-2 * a * ((a - 1) + (a + 1) * cos_w0)) / a0;
-        m_b2 = (a * ((a + 1) + (a - 1) * cos_w0 - x)) / a0;
-        m_a1 = (2 * ((a - 1) - (a + 1) * cos_w0)) / a0;
-        m_a2 = ((a + 1) - (a - 1) * cos_w0 - x) / a0;
+        float inv_a0 = 1 / a0;
+        m_b0 = (a * ((a + 1) + (a - 1) * cos_w0 + x)) * inv_a0;
+        m_b1 = (-2 * a * ((a - 1) + (a + 1) * cos_w0)) * inv_a0;
+        m_b2 = (a * ((a + 1) + (a - 1) * cos_w0 - x)) * inv_a0;
+        m_a1 = (2 * ((a - 1) - (a + 1) * cos_w0)) * inv_a0;
+        m_a2 = ((a + 1) - (a - 1) * cos_w0 - x) * inv_a0;
     }
 
     float process(float in) {
@@ -195,7 +195,7 @@ private:
     float m_x2 = 0.0f;
     float m_y1 = 0.0f;
     float m_y2 = 0.0f;
-    float m_b0, m_b1, m_b2, m_a0, m_a1, m_a2;
+    float m_b0 = 1.0f, m_b1 = 0.0f, m_b2 = 0.0f, m_a1 = 0.0f, m_a2 = 0.0f;
 };
 
 class LowShelf {
@@ -205,23 +205,23 @@ public:
     ) :
     m_sample_rate(sample_rate)
     {
-        set_frequency_and_gain(150.0f, -2.0f);
     }
 
-    float set_frequency_and_gain(float frequency, float gain) {
+    float set_parameters(float frequency, float ratio) {
         float w0 = twopi * frequency / m_sample_rate;
         float sin_w0 = sinf(w0);
         float cos_w0 = cosf(w0);
-        float a = powf(10.0f, gain / 40.0f);
+        float a = sqrtf(ratio);
         float s = 1.0f;
         float alpha = sin_w0 * 0.5 * sqrtf((a + 1 / a) * (1 / s - 1) + 2);
         float x = 2 * sqrtf(a) * alpha;
         float a0 = (a + 1) + (a - 1) * cos_w0 + x;
-        m_b0 = (a * ((a + 1) - (a - 1) * cos_w0 + x)) / a0;
-        m_b1 = (2 * a * ((a - 1) - (a + 1) * cos_w0)) / a0;
-        m_b2 = (a * ((a + 1) - (a - 1) * cos_w0 - x)) / a0;
-        m_a1 = (-2 * ((a - 1) + (a + 1) * cos_w0)) / a0;
-        m_a2 = ((a + 1) + (a - 1) * cos_w0 - x) / a0;
+        float inv_a0 = 1 / a0;
+        m_b0 = (a * ((a + 1) - (a - 1) * cos_w0 + x)) * inv_a0;
+        m_b1 = (2 * a * ((a - 1) - (a + 1) * cos_w0)) * inv_a0;
+        m_b2 = (a * ((a + 1) - (a - 1) * cos_w0 - x)) * inv_a0;
+        m_a1 = (-2 * ((a - 1) + (a + 1) * cos_w0)) * inv_a0;
+        m_a2 = ((a + 1) + (a - 1) * cos_w0 - x) * inv_a0;
     }
 
     float process(float in) {
@@ -241,7 +241,7 @@ private:
     float m_x2 = 0.0f;
     float m_y1 = 0.0f;
     float m_y2 = 0.0f;
-    float m_b0, m_b1, m_b2, m_a0, m_a1, m_a2;
+    float m_b0 = 1.0f, m_b1 = 0.0f, m_b2 = 0.0f, m_a1 = 0.0f, m_a2 = 0.0f;
 };
 
 
@@ -481,6 +481,82 @@ public:
         m_k = compute_k_from_rt60(rt60);
     }
 
+    inline void set_low_shelf_parameters(float frequency, float ratio) {
+        for (auto& x : m_low_shelves) {
+            x.set_parameters(frequency, ratio);
+        }
+    }
+
+    inline void set_hi_shelf_parameters(float frequency, float ratio) {
+        for (auto& x : m_hi_shelves) {
+            x.set_parameters(frequency, ratio);
+        }
+    }
+
+    Stereo process(Stereo in) {
+        Stereo lfo = m_lfo.process();
+        lfo[0] *= 0.32e-3f * 0.5f;
+        lfo[1] *= -0.45e-3f * 0.5f;
+
+        Stereo early = process_early(in);
+
+        Stereo out = process_outputs(early);
+
+        Stereo late = {{
+            process_late_left(early[0], lfo),
+            process_late_right(early[1], lfo)
+        }};
+        late = rotate(late, 0.6f);
+        m_feedback = late;
+
+        return out;
+    }
+
+    Stereo process(float in_left, float in_right) {
+        Stereo in = {{in_left, in_right}};
+        return process(in);
+    }
+
+private:
+    std::unique_ptr<Alloc> m_allocator;
+
+    const float m_sample_rate;
+
+    static constexpr float delay_time_1 = 183.6e-3f;
+    static constexpr float delay_time_2 = 94.3e-3f;
+    static constexpr float delay_time_3 = 157.6e-3f;
+    static constexpr float delay_time_4 = 63.6e-3f;
+
+    static constexpr float average_delay_time =
+        (delay_time_1 + delay_time_2 + delay_time_3 + delay_time_4) / 4.0f;
+
+    Stereo m_feedback = {{0.f, 0.f}};
+
+    RandomLFO m_lfo;
+    DCBlocker m_dc_blocker;
+
+    std::array<LowShelf, 4> m_low_shelves;
+    std::array<HiShelf, 4> m_hi_shelves;
+
+    // NOTE: When adding new delay units, don't forget to allocate the memory
+    // in the constructor and free it in the destructor.
+    std::array<Allpass, 8> m_early_allpasses;
+    std::array<Delay, 4> m_early_delays;
+
+    std::array<VariableAllpass, 4> m_late_variable_allpasses;
+    std::array<Allpass, 4> m_late_allpasses;
+    std::array<Delay, 4> m_late_delays;
+
+    void allocate_delay_line(BaseDelay& delay) {
+        void* memory = m_allocator->allocate(sizeof(float) * delay.m_size);
+        delay.m_buffer = static_cast<float*>(memory);
+        memset(delay.m_buffer, 0, sizeof(float) * delay.m_size);
+    }
+
+    void free_delay_line(BaseDelay& delay) {
+        m_allocator->deallocate(delay.m_buffer);
+    }
+
     inline Stereo process_early(Stereo in) {
         Stereo sig = {{in[0], in[1]}};
 
@@ -574,70 +650,6 @@ public:
         out[1] += m_late_delays[3].tap(0.0e-3f, 1.0f);
 
         return out;
-    }
-
-    Stereo process(Stereo in) {
-        Stereo lfo = m_lfo.process();
-        lfo[0] *= 0.32e-3f * 0.5f;
-        lfo[1] *= -0.45e-3f * 0.5f;
-
-        Stereo early = process_early(in);
-
-        Stereo out = process_outputs(early);
-
-        Stereo late = {{
-            process_late_left(early[0], lfo),
-            process_late_right(early[1], lfo)
-        }};
-        late = rotate(late, 0.6f);
-        m_feedback = late;
-
-        return out;
-    }
-
-    Stereo process(float in_left, float in_right) {
-        Stereo in = {{in_left, in_right}};
-        return process(in);
-    }
-
-private:
-    std::unique_ptr<Alloc> m_allocator;
-
-    const float m_sample_rate;
-
-    static constexpr float delay_time_1 = 183.6e-3f;
-    static constexpr float delay_time_2 = 94.3e-3f;
-    static constexpr float delay_time_3 = 157.6e-3f;
-    static constexpr float delay_time_4 = 63.6e-3f;
-
-    static constexpr float average_delay_time =
-        (delay_time_1 + delay_time_2 + delay_time_3 + delay_time_4) / 4.0f;
-
-    Stereo m_feedback = {{0.f, 0.f}};
-
-    RandomLFO m_lfo;
-    DCBlocker m_dc_blocker;
-
-    std::array<LowShelf, 4> m_low_shelves;
-    std::array<HiShelf, 4> m_hi_shelves;
-
-    // NOTE: When adding new delay units, don't forget to allocate the memory
-    // in the constructor and free it in the destructor.
-    std::array<Allpass, 8> m_early_allpasses;
-    std::array<Delay, 4> m_early_delays;
-
-    std::array<VariableAllpass, 4> m_late_variable_allpasses;
-    std::array<Allpass, 4> m_late_allpasses;
-    std::array<Delay, 4> m_late_delays;
-
-    void allocate_delay_line(BaseDelay& delay) {
-        void* memory = m_allocator->allocate(sizeof(float) * delay.m_size);
-        delay.m_buffer = static_cast<float*>(memory);
-        memset(delay.m_buffer, 0, sizeof(float) * delay.m_size);
-    }
-
-    void free_delay_line(BaseDelay& delay) {
-        m_allocator->deallocate(delay.m_buffer);
     }
 };
 

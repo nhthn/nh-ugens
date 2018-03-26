@@ -60,6 +60,16 @@ public:
     )
     {
         set_calc_function<NHHall, &NHHall::next>();
+
+        m_last_k = in0(2);
+        m_last_stereo = in0(3);
+        m_last_low_freq = in0(4);
+        m_last_low_ratio = in0(5);
+        m_last_hi_freq = in0(6);
+        m_last_hi_ratio = in0(7);
+
+        m_core.set_low_shelf_parameters(m_last_low_freq, m_last_low_ratio);
+        m_core.set_hi_shelf_parameters(m_last_hi_freq, m_last_hi_ratio);
     }
     catch (const real_time_allocation_failed& ex) {
         printf("Could not allocate real-time memory for NHHall\n");
@@ -71,12 +81,16 @@ public:
     {
         mCalcFunc = make_calc_function<UnitType, PointerToMember>();
         clear(1);
-        m_last_k = in0(2);
     }
 
 private:
     nh_ugens::Unit<SCAllocator> m_core;
     float m_last_k;
+    float m_last_stereo;
+    float m_last_low_freq;
+    float m_last_low_ratio;
+    float m_last_hi_freq;
+    float m_last_hi_ratio;
 
     void clear(int inNumSamples) {
         ClearUnitOutputs(this, inNumSamples);
@@ -86,20 +100,61 @@ private:
         const float* in_left = in(0);
         const float* in_right = in(1);
         const float rt60 = in0(2);
+        const float stereo = in0(3);
+        float low_freq = in0(4);
+        float low_ratio = in0(5);
+        float hi_freq = in0(6);
+        float hi_ratio = in0(7);
+
         float* out_left = out(0);
         float* out_right = out(1);
 
         float new_k = m_core.compute_k_from_rt60(rt60);
         float k = m_last_k;
         float k_ramp = (k - m_last_k) / inNumSamples;
+
+        bool stereo_has_changed = stereo != m_last_stereo;
+        bool low_shelf_parameters_have_changed = (
+            low_freq != m_last_low_freq ||
+            low_ratio != m_last_low_ratio
+        );
+        bool hi_shelf_parameters_have_changed = (
+            hi_freq != m_last_hi_freq ||
+            hi_ratio != m_last_hi_ratio
+        );
+
+        float low_freq_ramp = (low_freq - m_last_low_freq) / inNumSamples;
+        float low_ratio_ramp = (low_ratio - m_last_low_freq) / inNumSamples;
+        float hi_freq_ramp = (hi_freq - m_last_hi_freq) / inNumSamples;
+        float hi_ratio_ramp = (hi_ratio - m_last_hi_ratio) / inNumSamples;
+
         for (int i = 0; i < inNumSamples; i++) {
-            k += k_ramp;
             m_core.m_k = k;
+            k += k_ramp;
+
+            if (low_shelf_parameters_have_changed) {
+                m_core.set_low_shelf_parameters(low_freq, low_ratio);
+                low_freq += low_freq_ramp;
+                low_ratio += low_ratio_ramp;
+            }
+
+            if (hi_shelf_parameters_have_changed) {
+                m_core.set_hi_shelf_parameters(hi_freq, hi_ratio);
+                hi_freq += hi_freq_ramp;
+                hi_ratio += hi_ratio_ramp;
+            }
+
             std::array<float, 2> result = m_core.process(in_left[i], in_right[i]);
             out_left[i] = result[0];
             out_right[i] = result[1];
         }
         m_last_k = new_k;
+
+        m_last_stereo = stereo;
+        m_last_low_freq = low_freq;
+        m_last_low_ratio = low_ratio;
+        m_last_hi_freq = hi_freq;
+        m_last_hi_ratio = hi_ratio;
     }
 };
 

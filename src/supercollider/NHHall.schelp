@@ -1,0 +1,85 @@
+TITLE:: NHHall
+summary:: Stereo reverb
+categories:: UGens>Filters
+
+DESCRIPTION::
+
+A general-purpose stereo-to-stereo reverb. Both the early and late reflections are "true stereo," designed so that the reflections bloom outward from the panned positions of the input signal. Random modulation adds lush chorus effects to the sound.
+
+This provides only the wet signal. A practical reverb should generally have a wet/dry mix, predelay, and post-EQ (or pre-EQ). Since these are elementary to write in SuperCollider, they are not built in.
+
+For a mono-to-stereo reverb, turn the input signal into a stereo signal with Pan2. For a mono-to-mono reverb, turn the stereo spread up to 1 and use only the left or right output channel. It is not advisable to sum the two channels together due to the use of the Haas effect in the output taps.
+
+The reverb can be frozen by multiplying the input by 0 and setting the reverberation time to infinity. This results in some very strange, evolving artifacts if held for an extended period.
+
+CLASSMETHODS::
+
+METHOD:: ar
+
+All arguments except the input are control-rate.
+
+ARGUMENT:: in
+
+Input signal.
+
+ARGUMENT:: rt60
+
+Approximate 60dB decay time of the mid frequencies. Setting this to infinity results in an infinite hold reverb.
+
+ARGUMENT:: spread
+
+Not currently functional.
+
+Rate at which audio spreads between the left and right channels. At 0, the two channels are kept completely separate (aside from the Haas effect in the output taps). At 1, they are instantly blended together. In between, the stereo spread happens slowly over time.
+
+ARGUMENT:: lowFreq
+
+The low frequency cutoff.
+
+ARGUMENT:: lowRatio
+
+The ratio of the decay rate for low frequencies.
+
+ARGUMENT:: highFreq
+
+The high frequency cutoff.
+
+ARGUMENT:: highRatio
+
+The ratio of the decay rate for high frequencies.
+
+ARGUMENT:: earlyDiff
+
+Not currently functional.
+
+The coefficient for the early reflection Schroeder allpass filters. Ranges from 0 to 1, but most normal reverbs will use 0.5 to 0.9. Higher values have a sharper attack and add metallic coloration to the signal.
+
+ARGUMENT:: earlyModRate
+
+Not currently functional.
+
+Modulation rate for early reflections. Ranges from 0 to 1.
+
+ARGUMENT:: earlyModDepth
+
+Not currently functional.
+
+Modulation depth for early reflections. Ranges from 0 to 1.
+
+ARGUMENT:: lateDiff
+
+Not currently functional.
+
+The coefficient for the late reflection Schroeder allpass filters. Ranges from 0 to 1, but most normal reverbs will use 0.5 to 0.9. Higher values have a sharper attack and add metallic coloration to the signal.
+
+ARGUMENT:: lateModRate
+
+Not currently functional.
+
+Modulation rate for late reflections. Ranges from 0 to 1.
+
+ARGUMENT:: lateModDepth
+
+Not currently functional.
+
+Modulation depth for late reflections. Ranges from 0 to 1.
