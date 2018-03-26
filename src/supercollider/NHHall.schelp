@@ -30,7 +30,7 @@ ARGUMENT:: spread
 
 Not currently functional.
 
-Rate at which audio spreads between the left and right channels. At 0, the two channels are kept completely separate (aside from the Haas effect in the output taps). At 1, they are instantly blended together. In between, the stereo spread happens slowly over time.
+Rate at which audio spreads between the left and right channels. At 0, the two channel paths are kept separate. At 1, they are instantly blended together. In between, the stereo spread happens slowly over time.
 
 ARGUMENT:: lowFreq
 
@@ -38,7 +38,7 @@ The low frequency cutoff.
 
 ARGUMENT:: lowRatio
 
-The ratio of the decay rate for low frequencies.
+The ratio of the decay rate for low frequencies. 0.01 to 1 is a safe range. Set this to 1 to disable low-frequency attenuation.
 
 ARGUMENT:: highFreq
 
@@ -46,7 +46,7 @@ The high frequency cutoff.
 
 ARGUMENT:: highRatio
 
-The ratio of the decay rate for high frequencies.
+The ratio of the decay rate for high frequencies. 0.01 to 1 is a safe range. Set this to 1 to disable high-frequency attenuation.
 
 ARGUMENT:: earlyDiff
 
