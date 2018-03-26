@@ -161,7 +161,7 @@ public:
     {
     }
 
-    float set_parameters(float frequency, float ratio) {
+    void set_parameters(float frequency, float ratio) {
         float w0 = twopi * frequency / m_sample_rate;
         float sin_w0 = sinf(w0);
         float cos_w0 = cosf(w0);
@@ -207,7 +207,7 @@ public:
     {
     }
 
-    float set_parameters(float frequency, float ratio) {
+    void set_parameters(float frequency, float ratio) {
         float w0 = twopi * frequency / m_sample_rate;
         float sin_w0 = sinf(w0);
         float cos_w0 = cosf(w0);
