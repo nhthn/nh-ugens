@@ -644,8 +644,7 @@ private:
 
         Stereo out = {{early[0] * 0.5f, early[1] * 0.5f}};
 
-        //float haas_multiplier = -0.3f;
-        float haas_multiplier = 0.0f;
+        float haas_multiplier = -0.3f;
 
         out[0] += m_late_delays[0].tap(0.0e-3f, 1.0f);
         out[1] += m_late_delays[0].tap(0.3e-3f, haas_multiplier);
