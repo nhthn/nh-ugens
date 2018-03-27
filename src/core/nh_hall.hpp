@@ -400,14 +400,14 @@ public:
     m_hi_shelves {{sample_rate, sample_rate, sample_rate, sample_rate}},
 
     m_early_allpasses {{
-        Allpass(sample_rate, 14.5e-3f, 1),
-        Allpass(sample_rate, 6.0e-3f, -1),
-        Allpass(sample_rate, 12.8e-3f, 1),
-        Allpass(sample_rate, 7.2e-3f, -1),
-        Allpass(sample_rate, 13.5e-3f, 1),
+        Allpass(sample_rate, 9.5e-3f, 1),
+        Allpass(sample_rate, 12.0e-3f, -1),
+        Allpass(sample_rate, 7.8e-3f, 1),
+        Allpass(sample_rate, 14.2e-3f, -1),
+        Allpass(sample_rate, 23.5e-3f, 1),
         Allpass(sample_rate, 8.0e-3f, -1),
-        Allpass(sample_rate, 16.8e-3f, 1),
-        Allpass(sample_rate, 10.2e-3f, -1)
+        Allpass(sample_rate, 25.8e-3f, 1),
+        Allpass(sample_rate, 7.2e-3f, -1)
     }},
 
     m_early_delays {{
