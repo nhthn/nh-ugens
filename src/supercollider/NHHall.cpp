@@ -126,7 +126,7 @@ private:
 
         float new_k = m_core.compute_k_from_rt60(rt60);
         float k = m_last_k;
-        float k_ramp = (k - m_last_k) / inNumSamples;
+        float k_ramp = (new_k - m_last_k) / inNumSamples;
 
         bool stereo_has_changed = stereo != m_last_stereo;
         bool low_shelf_parameters_have_changed = (
