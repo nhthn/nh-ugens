@@ -7,6 +7,8 @@ CK_DLL_DTOR(nhhall_dtor);
 
 CK_DLL_MFUN(nhhall_getRt60);
 CK_DLL_MFUN(nhhall_setRt60);
+CK_DLL_MFUN(nhhall_getStereo);
+CK_DLL_MFUN(nhhall_setStereo);
 CK_DLL_MFUN(nhhall_getLowFreq);
 CK_DLL_MFUN(nhhall_setLowFreq);
 CK_DLL_MFUN(nhhall_getLowRatio);
@@ -34,6 +36,7 @@ public:
     : m_core(sample_rate)
     {
         m_core.set_rt60(m_rt60);
+        m_core.set_stereo(m_stereo);
         m_core.set_low_shelf_parameters(m_lowFreq, m_lowRatio);
         m_core.set_hi_shelf_parameters(m_hiFreq, m_hiRatio);
     }
@@ -54,6 +57,10 @@ CK_DLL_QUERY(NHHall) {
     QUERY->add_mfun(QUERY, nhhall_setRt60, "float", "rt60");
     QUERY->add_arg(QUERY, "float", "arg");
     QUERY->add_mfun(QUERY, nhhall_getRt60, "float", "rt60");
+
+    QUERY->add_mfun(QUERY, nhhall_setStereo, "float", "stereo");
+    QUERY->add_arg(QUERY, "float", "arg");
+    QUERY->add_mfun(QUERY, nhhall_getStereo, "float", "stereo");
 
     QUERY->add_mfun(QUERY, nhhall_setLowFreq, "float", "lowFreq");
     QUERY->add_arg(QUERY, "float", "arg");
@@ -119,6 +126,18 @@ CK_DLL_MFUN(nhhall_setRt60) {
     unit->m_rt60 = GET_NEXT_DUR(ARGS);
     unit->m_core.set_rt60(unit->m_rt60);
     RETURN->v_float = unit->m_rt60;
+}
+
+CK_DLL_MFUN(nhhall_setStereo) {
+    NHHall* unit = (NHHall*)OBJ_MEMBER_INT(SELF, nhhall_unit_offset);
+    RETURN->v_float = unit->m_stereo;
+}
+
+CK_DLL_MFUN(nhhall_getStereo) {
+    NHHall* unit = (NHHall*)OBJ_MEMBER_INT(SELF, nhhall_unit_offset);
+    unit->m_stereo = GET_NEXT_DUR(ARGS);
+    unit->m_core.set_stereo(unit->m_stereo);
+    RETURN->v_float = unit->m_stereo;
 }
 
 CK_DLL_MFUN(nhhall_getLowFreq) {

@@ -68,6 +68,7 @@ public:
         m_last_hi_freq = in0(6);
         m_last_hi_ratio = in0(7);
 
+        m_core.set_stereo(m_last_stereo);
         m_core.set_low_shelf_parameters(m_last_low_freq, m_last_low_ratio);
         m_core.set_hi_shelf_parameters(m_last_hi_freq, m_last_hi_ratio);
     }
@@ -100,7 +101,7 @@ private:
         const float* in_left = in(0);
         const float* in_right = in(1);
         const float rt60 = in0(2);
-        const float stereo = in0(3);
+        float stereo = in0(3);
         float low_freq = in0(4);
         float low_ratio = in0(5);
         float hi_freq = in0(6);
@@ -123,6 +124,7 @@ private:
             hi_ratio != m_last_hi_ratio
         );
 
+        float stereo_ramp = (stereo - m_last_stereo) / inNumSamples;
         float low_freq_ramp = (low_freq - m_last_low_freq) / inNumSamples;
         float low_ratio_ramp = (low_ratio - m_last_low_freq) / inNumSamples;
         float hi_freq_ramp = (hi_freq - m_last_hi_freq) / inNumSamples;
@@ -131,6 +133,11 @@ private:
         for (int i = 0; i < inNumSamples; i++) {
             m_core.m_k = k;
             k += k_ramp;
+
+            if (stereo_has_changed) {
+                m_core.set_stereo(stereo);
+                stereo += stereo_ramp;
+            }
 
             if (low_shelf_parameters_have_changed) {
                 m_core.set_low_shelf_parameters(low_freq, low_ratio);

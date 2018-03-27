@@ -32,10 +32,10 @@ static float interpolate_cubic(float x, float y0, float y1, float y2, float y3) 
 
 // Unitary rotation matrix. Angle is given in radians.
 // TODO: optimize
-static inline Stereo rotate(Stereo x, float angle) {
+static inline Stereo rotate(Stereo x, float cos, float sin) {
     Stereo result = {
-        cosf(angle) * x[0] - sinf(angle) * x[1],
-        sinf(angle) * x[0] + cosf(angle) * x[1]
+        cos * x[0] - sin * x[1],
+        sin * x[0] + cos * x[1]
     };
     return result;
 }
@@ -481,6 +481,12 @@ public:
         m_k = compute_k_from_rt60(rt60);
     }
 
+    inline void set_stereo(float stereo) {
+        float angle = stereo * twopi * 0.25f;
+        m_rotate_cos = cosf(angle);
+        m_rotate_sin = sinf(angle);
+    }
+
     inline void set_low_shelf_parameters(float frequency, float ratio) {
         for (auto& x : m_low_shelves) {
             x.set_parameters(frequency, ratio);
@@ -506,7 +512,7 @@ public:
             process_late_left(early[0], lfo),
             process_late_right(early[1], lfo)
         }};
-        late = rotate(late, 0.6f);
+        late = rotate(late, m_rotate_cos, m_rotate_sin);
         m_feedback = late;
 
         return out;
@@ -531,6 +537,9 @@ private:
         (delay_time_1 + delay_time_2 + delay_time_3 + delay_time_4) / 4.0f;
 
     Stereo m_feedback = {{0.f, 0.f}};
+
+    float m_rotate_cos = 0.0;
+    float m_rotate_sin = 1.0;
 
     RandomLFO m_lfo;
     DCBlocker m_dc_blocker;
@@ -564,7 +573,7 @@ private:
         sig[0] = m_early_allpasses[1].process(sig[0]);
         sig[1] = m_early_allpasses[2].process(sig[1]);
         sig[1] = m_early_allpasses[3].process(sig[1]);
-        sig = rotate(sig, 0.2f);
+        sig = rotate(sig, m_rotate_cos, m_rotate_sin);
         Stereo early = sig;
 
         sig[0] = m_early_delays[0].process(sig[0]);
@@ -574,7 +583,7 @@ private:
         sig[0] = m_early_allpasses[5].process(sig[0]);
         sig[1] = m_early_allpasses[6].process(sig[1]);
         sig[1] = m_early_allpasses[7].process(sig[1]);
-        sig = rotate(sig, 0.8f);
+        sig = rotate(sig, m_rotate_cos, m_rotate_sin);
         early[0] += sig[0] * 0.5f;
         early[1] += sig[1] * 0.5f;
 
@@ -635,7 +644,8 @@ private:
 
         Stereo out = {{early[0] * 0.5f, early[1] * 0.5f}};
 
-        float haas_multiplier = -0.8f;
+        //float haas_multiplier = -0.3f;
+        float haas_multiplier = 0.0f;
 
         out[0] += m_late_delays[0].tap(0.0e-3f, 1.0f);
         out[1] += m_late_delays[0].tap(0.3e-3f, haas_multiplier);
