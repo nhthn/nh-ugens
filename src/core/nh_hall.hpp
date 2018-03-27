@@ -343,7 +343,7 @@ public:
         float max_mod_depth,
         float diffusion_sign
     ) :
-    BaseDelay(sample_rate, delay + max_mod_depth, delay),
+    BaseDelay(sample_rate, delay + max_mod_depth + 4.0 / sample_rate, delay),
     m_diffusion_sign(diffusion_sign)
     {
     }
@@ -354,6 +354,13 @@ public:
 
     float process(float in, float offset) {
         float position = m_read_position - (m_delay + offset) * m_sample_rate;
+
+        // This catches a very sneaky bug -- casting position to int rounds
+        // toward zero. To mitigate this, we ensure that the position is always
+        // above zero before rounding it down, using the fact that
+        // (m_delay + offset) * m_sample_rate < m_size.
+        position += m_size;
+
         int iposition = position;
         float position_frac = position - iposition;
 
@@ -413,7 +420,6 @@ public:
         Delay(sample_rate, 2.17e-3)
     }},
 
-    // TODO: Maximum delays for variable allpasses are temporary.
     m_late_variable_allpasses {{
         VariableAllpass(sample_rate, 25.6e-3f, k_max_mod_depth, 1),
         VariableAllpass(sample_rate, 50.7e-3f, k_max_mod_depth, -1),
