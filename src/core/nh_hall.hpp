@@ -321,8 +321,7 @@ public:
 
     float process(float in) {
         float delayed_signal = m_buffer[(m_read_position - m_delay_in_samples) & m_mask];
-        float feedback_plus_input =
-            in + delayed_signal * m_k;
+        float feedback_plus_input = in + delayed_signal * m_k;
         m_buffer[m_read_position] = feedback_plus_input;
         m_read_position = (m_read_position + 1) & m_mask;
         float out = feedback_plus_input * -m_k + delayed_signal;
@@ -365,8 +364,7 @@ public:
 
         float delayed_signal = interpolate_cubic(position_frac, y0, y1, y2, y3);
 
-        float feedback_plus_input =
-            in + delayed_signal * m_k;
+        float feedback_plus_input = in + delayed_signal * m_k;
         m_buffer[m_read_position] = feedback_plus_input;
         m_read_position = (m_read_position + 1) & m_mask;
         float out = feedback_plus_input * -m_k + delayed_signal;
