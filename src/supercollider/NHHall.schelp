@@ -12,6 +12,8 @@ For a mono-to-stereo reverb, turn the input signal into a stereo signal with Pan
 
 The reverb can be frozen by multiplying the input by 0 and setting the reverberation time to infinity. This results in some very strange, evolving artifacts if held for an extended period.
 
+This reverb was written by Nathan Ho specifically for SuperCollider, ChucK, and Auraglyph (an open source modular synth for iPad).
+
 CLASSMETHODS::
 
 METHOD:: ar
@@ -28,9 +30,7 @@ Approximate 60dB decay time of the mid frequencies. Setting this to infinity res
 
 ARGUMENT:: spread
 
-Not currently functional.
-
-Rate at which audio spreads between the left and right channels. At 0, the two channel paths are kept separate. At 1, they are instantly blended together. In between, the stereo spread happens slowly over time.
+Rate at which audio spreads between the left and right channels. At 0, the two channel paths are kept separate. At 1, they blend together nearly instantly. In between, the stereo spread happens slowly over time.
 
 ARGUMENT:: lowFreq
 
@@ -48,9 +48,7 @@ ARGUMENT:: highRatio
 
 The ratio of the decay rate for high frequencies. 0.01 to 1 is a safe range. Set this to 1 to disable high-frequency attenuation.
 
-ARGUMENT:: earlyDiff
-
-Not currently functional.
+ARGUMENT:: earlyDiffusion
 
 The coefficient for the early reflection Schroeder allpass filters. Ranges from 0 to 1, but most normal reverbs will use 0.5 to 0.9. Higher values have a sharper attack and add metallic coloration to the signal.
 
@@ -66,9 +64,7 @@ Not currently functional.
 
 Modulation depth for early reflections. Ranges from 0 to 1.
 
-ARGUMENT:: lateDiff
-
-Not currently functional.
+ARGUMENT:: lateDiffusion
 
 The coefficient for the late reflection Schroeder allpass filters. Ranges from 0 to 1, but most normal reverbs will use 0.5 to 0.9. Higher values have a sharper attack and add metallic coloration to the signal.
 

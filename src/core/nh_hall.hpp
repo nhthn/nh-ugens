@@ -305,14 +305,20 @@ public:
 // Fixed Schroeder allpass.
 class Allpass : public BaseDelay {
 public:
+    float m_k = 0.5;
+
     Allpass(
         float sample_rate,
         float delay,
-        float k
+        float diffusion_sign
     ) :
     BaseDelay(sample_rate, delay, delay),
-    m_k(k)
+    m_diffusion_sign(diffusion_sign)
     {
+    }
+
+    float set_diffusion(float diffusion) {
+        m_k = diffusion * m_diffusion_sign;
     }
 
     float process(float in) {
@@ -326,21 +332,27 @@ public:
     }
 
 private:
-    float m_k;
+    float m_diffusion_sign;
 };
 
 // Schroeder allpass with variable delay and cubic interpolation.
 class VariableAllpass : public BaseDelay {
 public:
+    float m_k = 0.5;
+
     VariableAllpass(
         float sample_rate,
         float max_delay,
         float delay,
-        float k
+        float diffusion_sign
     ) :
     BaseDelay(sample_rate, max_delay, delay),
-    m_k(k)
+    m_diffusion_sign(diffusion_sign)
     {
+    }
+
+    float set_diffusion(float diffusion) {
+        m_k = diffusion * m_diffusion_sign;
     }
 
     float process(float in, float offset) {
@@ -365,7 +377,7 @@ public:
     }
 
 private:
-    float m_k;
+    float m_diffusion_sign;
 };
 
 /* NHHall allows you to pass in a memory allocator of your choice. */
@@ -388,14 +400,14 @@ public:
     m_hi_shelves {{sample_rate, sample_rate, sample_rate, sample_rate}},
 
     m_early_allpasses {{
-        Allpass(sample_rate, 14.5e-3f, 0.5f),
-        Allpass(sample_rate, 6.0e-3f, 0.5f),
-        Allpass(sample_rate, 12.8e-3f, 0.5f),
-        Allpass(sample_rate, 7.2e-3f, 0.5f),
-        Allpass(sample_rate, 13.5e-3f, 0.5f),
-        Allpass(sample_rate, 8.0e-3f, 0.5f),
-        Allpass(sample_rate, 16.8e-3f, 0.5f),
-        Allpass(sample_rate, 10.2e-3f, 0.5f)
+        Allpass(sample_rate, 14.5e-3f, 1),
+        Allpass(sample_rate, 6.0e-3f, -1),
+        Allpass(sample_rate, 12.8e-3f, 1),
+        Allpass(sample_rate, 7.2e-3f, -1),
+        Allpass(sample_rate, 13.5e-3f, 1),
+        Allpass(sample_rate, 8.0e-3f, -1),
+        Allpass(sample_rate, 16.8e-3f, 1),
+        Allpass(sample_rate, 10.2e-3f, -1)
     }},
 
     m_early_delays {{
@@ -407,17 +419,17 @@ public:
 
     // TODO: Maximum delays for variable allpasses are temporary.
     m_late_variable_allpasses {{
-        VariableAllpass(sample_rate, 100e-3f, 25.6e-3f, -0.55f),
-        VariableAllpass(sample_rate, 120e-3f, 50.7e-3f, 0.55f),
-        VariableAllpass(sample_rate, 100e-3f, 68.6e-3f, 0.55f),
-        VariableAllpass(sample_rate, 100e-3f, 45.7e-3f, 0.55f)
+        VariableAllpass(sample_rate, 100e-3f, 25.6e-3f, 1),
+        VariableAllpass(sample_rate, 120e-3f, 50.7e-3f, -1),
+        VariableAllpass(sample_rate, 100e-3f, 68.6e-3f, 1),
+        VariableAllpass(sample_rate, 100e-3f, 45.7e-3f, -1)
     }},
 
     m_late_allpasses {{
-        Allpass(sample_rate, 41.4e-3f, 0.55f),
-        Allpass(sample_rate, 25.6e-3f, -0.55f),
-        Allpass(sample_rate, 29.4e-3f, -0.55f),
-        Allpass(sample_rate, 23.6e-3f, -0.55f)
+        Allpass(sample_rate, 41.4e-3f, -1),
+        Allpass(sample_rate, 25.6e-3f, 1),
+        Allpass(sample_rate, 29.4e-3f, -1),
+        Allpass(sample_rate, 23.6e-3f, 1)
     }},
 
     m_late_delays {{
@@ -496,6 +508,21 @@ public:
     inline void set_hi_shelf_parameters(float frequency, float ratio) {
         for (auto& x : m_hi_shelves) {
             x.set_parameters(frequency, ratio);
+        }
+    }
+
+    inline void set_early_diffusion(float diffusion) {
+        for (auto& x : m_early_allpasses) {
+            x.set_diffusion(diffusion);
+        }
+    }
+
+    inline void set_late_diffusion(float diffusion) {
+        for (auto& x : m_late_allpasses) {
+            x.set_diffusion(diffusion);
+        }
+        for (auto& x : m_late_variable_allpasses) {
+            x.set_diffusion(diffusion);
         }
     }
 

@@ -8,12 +8,12 @@ NHHall : MultiOutUGen {
             lowRatio = 0.5,
             hiFreq = 4000,
             hiRatio = 0.5,
-            earlyDiff,
-            earlyModRate,
-            earlyModDepth,
-            lateDiff,
-            lateModRate,
-            lateModDepth
+            earlyDiffusion = 0.5,
+            earlyModRate = 1.0,
+            earlyModDepth = 1.0,
+            lateDiffusion = 0.5,
+            lateModRate = 1.0,
+            lateModDepth = 1.0
         |
         in = in.asArray;
         if(in.size != 2) {
@@ -30,7 +30,13 @@ NHHall : MultiOutUGen {
             lowFreq,
             lowRatio,
             hiFreq,
-            hiRatio
+            hiRatio,
+            earlyDiffusion,
+            earlyModRate,
+            earlyModDepth,
+            lateDiffusion,
+            lateModDepth,
+            lateModDepth
         );
     }
 

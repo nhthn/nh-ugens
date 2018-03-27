@@ -67,10 +67,18 @@ public:
         m_last_low_ratio = in0(5);
         m_last_hi_freq = in0(6);
         m_last_hi_ratio = in0(7);
+        m_last_early_diffusion = in0(8);
+        m_last_early_mod_rate = in0(9);
+        m_last_early_mod_depth = in0(10);
+        m_last_late_diffusion = in0(11);
+        m_last_late_mod_rate = in0(12);
+        m_last_late_mod_depth = in0(13);
 
         m_core.set_stereo(m_last_stereo);
         m_core.set_low_shelf_parameters(m_last_low_freq, m_last_low_ratio);
         m_core.set_hi_shelf_parameters(m_last_hi_freq, m_last_hi_ratio);
+        m_core.set_early_diffusion(m_last_early_diffusion);
+        m_core.set_late_diffusion(m_last_late_diffusion);
     }
     catch (const real_time_allocation_failed& ex) {
         printf("Could not allocate real-time memory for NHHall\n");
@@ -92,6 +100,12 @@ private:
     float m_last_low_ratio;
     float m_last_hi_freq;
     float m_last_hi_ratio;
+    float m_last_early_diffusion;
+    float m_last_early_mod_rate;
+    float m_last_early_mod_depth;
+    float m_last_late_diffusion;
+    float m_last_late_mod_rate;
+    float m_last_late_mod_depth;
 
     void clear(int inNumSamples) {
         ClearUnitOutputs(this, inNumSamples);
