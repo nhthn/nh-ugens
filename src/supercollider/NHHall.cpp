@@ -68,11 +68,9 @@ public:
         m_last_hi_freq = in0(6);
         m_last_hi_ratio = in0(7);
         m_last_early_diffusion = in0(8);
-        m_last_early_mod_rate = in0(9);
-        m_last_early_mod_depth = in0(10);
-        m_last_late_diffusion = in0(11);
-        m_last_late_mod_rate = in0(12);
-        m_last_late_mod_depth = in0(13);
+        m_last_late_diffusion = in0(9);
+        m_last_mod_rate = in0(10);
+        m_last_mod_depth = in0(11);
 
         m_core.set_stereo(m_last_stereo);
         m_core.set_low_shelf_parameters(m_last_low_freq, m_last_low_ratio);
@@ -101,11 +99,9 @@ private:
     float m_last_hi_freq;
     float m_last_hi_ratio;
     float m_last_early_diffusion;
-    float m_last_early_mod_rate;
-    float m_last_early_mod_depth;
     float m_last_late_diffusion;
-    float m_last_late_mod_rate;
-    float m_last_late_mod_depth;
+    float m_last_mod_rate;
+    float m_last_mod_depth;
 
     void clear(int inNumSamples) {
         ClearUnitOutputs(this, inNumSamples);
@@ -120,6 +116,10 @@ private:
         float low_ratio = in0(5);
         float hi_freq = in0(6);
         float hi_ratio = in0(7);
+        float early_diffusion = in0(8);
+        float late_diffusion = in0(9);
+        float mod_rate = in0(10);
+        float mod_depth = in0(11);
 
         float* out_left = out(0);
         float* out_right = out(1);
@@ -128,6 +128,9 @@ private:
         float k = m_last_k;
         float k_ramp = (new_k - m_last_k) / inNumSamples;
 
+        // The stereo, low shelf, and hi shelf parameters are a bit expensive
+        // to update, so I have opted to avoid recomputing them if they are
+        // modulated.
         bool stereo_has_changed = stereo != m_last_stereo;
         bool low_shelf_parameters_have_changed = (
             low_freq != m_last_low_freq ||
@@ -143,6 +146,17 @@ private:
         float low_ratio_ramp = (low_ratio - m_last_low_freq) / inNumSamples;
         float hi_freq_ramp = (hi_freq - m_last_hi_freq) / inNumSamples;
         float hi_ratio_ramp = (hi_ratio - m_last_hi_ratio) / inNumSamples;
+        float early_diffusion_ramp = (early_diffusion - m_last_early_diffusion) / inNumSamples;
+        float late_diffusion_ramp = (late_diffusion - m_last_late_diffusion) / inNumSamples;
+
+        m_last_k = new_k;
+        m_last_stereo = stereo;
+        m_last_low_freq = low_freq;
+        m_last_low_ratio = low_ratio;
+        m_last_hi_freq = hi_freq;
+        m_last_hi_ratio = hi_ratio;
+        m_last_early_diffusion = early_diffusion;
+        m_last_late_diffusion = late_diffusion;
 
         for (int i = 0; i < inNumSamples; i++) {
             m_core.m_k = k;
@@ -165,17 +179,16 @@ private:
                 hi_ratio += hi_ratio_ramp;
             }
 
+            early_diffusion += early_diffusion_ramp;
+            m_core.set_early_diffusion(early_diffusion);
+
+            late_diffusion += late_diffusion_ramp;
+            m_core.set_late_diffusion(late_diffusion);
+
             std::array<float, 2> result = m_core.process(in_left[i], in_right[i]);
             out_left[i] = result[0];
             out_right[i] = result[1];
         }
-        m_last_k = new_k;
-
-        m_last_stereo = stereo;
-        m_last_low_freq = low_freq;
-        m_last_low_ratio = low_ratio;
-        m_last_hi_freq = hi_freq;
-        m_last_hi_ratio = hi_ratio;
     }
 };
 
