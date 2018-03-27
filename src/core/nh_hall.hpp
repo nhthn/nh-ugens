@@ -7,8 +7,6 @@
 /*
 TODO:
 
-- Modulate early reflections
-- Add missing user parameters
 - Improve handling of denormals
 - Implement cubic interpolation
 */
@@ -342,11 +340,11 @@ public:
 
     VariableAllpass(
         float sample_rate,
-        float max_delay,
         float delay,
+        float max_mod_depth,
         float diffusion_sign
     ) :
-    BaseDelay(sample_rate, max_delay, delay),
+    BaseDelay(sample_rate, delay + max_mod_depth, delay),
     m_diffusion_sign(diffusion_sign)
     {
     }
@@ -419,10 +417,10 @@ public:
 
     // TODO: Maximum delays for variable allpasses are temporary.
     m_late_variable_allpasses {{
-        VariableAllpass(sample_rate, 100e-3f, 25.6e-3f, 1),
-        VariableAllpass(sample_rate, 120e-3f, 50.7e-3f, -1),
-        VariableAllpass(sample_rate, 100e-3f, 68.6e-3f, 1),
-        VariableAllpass(sample_rate, 100e-3f, 45.7e-3f, -1)
+        VariableAllpass(sample_rate, 25.6e-3f, k_max_mod_depth, 1),
+        VariableAllpass(sample_rate, 50.7e-3f, k_max_mod_depth, -1),
+        VariableAllpass(sample_rate, 68.6e-3f, k_max_mod_depth, 1),
+        VariableAllpass(sample_rate, 45.7e-3f, k_max_mod_depth, -1)
     }},
 
     m_late_allpasses {{
@@ -528,8 +526,8 @@ public:
 
     Stereo process(Stereo in) {
         Stereo lfo = m_lfo.process();
-        lfo[0] *= 0.32e-3f * 0.5f;
-        lfo[1] *= -0.45e-3f * 0.5f;
+        lfo[0] *= k_max_mod_depth * 0.5f;
+        lfo[1] *= -k_max_mod_depth * 0.5f;
 
         Stereo early = process_early(in);
 
@@ -551,10 +549,6 @@ public:
     }
 
 private:
-    std::unique_ptr<Alloc> m_allocator;
-
-    const float m_sample_rate;
-
     static constexpr float delay_time_1 = 183.6e-3f;
     static constexpr float delay_time_2 = 94.3e-3f;
     static constexpr float delay_time_3 = 157.6e-3f;
@@ -562,6 +556,12 @@ private:
 
     static constexpr float average_delay_time =
         (delay_time_1 + delay_time_2 + delay_time_3 + delay_time_4) / 4.0f;
+
+    static constexpr float k_max_mod_depth = 0.45e-3f;
+
+    std::unique_ptr<Alloc> m_allocator;
+
+    const float m_sample_rate;
 
     Stereo m_feedback = {{0.f, 0.f}};
 
