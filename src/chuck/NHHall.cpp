@@ -36,8 +36,6 @@ public:
     float m_hiFreq = 4000;
     float m_hiRatio = 0.5;
     float m_earlyDiffusion = 0.5;
-    float m_earlyModRate = 0.5;
-    float m_earlyModDepth = 0.5;
     float m_lateDiffusion = 0.5;
     float m_lateModRate = 0.5;
     float m_lateModDepth = 0.5;
@@ -93,14 +91,6 @@ CK_DLL_QUERY(NHHall) {
     QUERY->add_mfun(QUERY, nhhall_setEarlyDiffusion, "float", "earlyDiffusion");
     QUERY->add_arg(QUERY, "float", "arg");
     QUERY->add_mfun(QUERY, nhhall_getEarlyDiffusion, "float", "earlyDiffusion");
-
-    // QUERY->add_mfun(QUERY, nhhall_setEarlyModRate, "float", "earlyModRate");
-    // QUERY->add_arg(QUERY, "float", "arg");
-    // QUERY->add_mfun(QUERY, nhhall_getEarlyModRate, "float", "earlyModRate");
-
-    // QUERY->add_mfun(QUERY, nhhall_setEarlyModDepth, "float", "earlyModDepth");
-    // QUERY->add_arg(QUERY, "float", "arg");
-    // QUERY->add_mfun(QUERY, nhhall_getEarlyModDepth, "float", "earlyModDepth");
 
     QUERY->add_mfun(QUERY, nhhall_setLateDiffusion, "float", "lateDiffusion");
     QUERY->add_arg(QUERY, "float", "arg");

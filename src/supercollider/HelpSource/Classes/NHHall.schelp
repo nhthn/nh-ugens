@@ -28,7 +28,7 @@ ARGUMENT:: rt60
 
 Approximate 60dB decay time of the mid frequencies. Setting this to infinity results in an infinite hold reverb.
 
-ARGUMENT:: spread
+ARGUMENT:: stereo
 
 Rate at which audio spreads between the left and right channels. At 0, the two channel paths are kept separate. At 1, they blend together nearly instantly. In between, the stereo spread happens slowly over time.
 
@@ -40,11 +40,11 @@ ARGUMENT:: lowRatio
 
 The ratio of the decay rate for low frequencies. 0.01 to 1 is a safe range. Set this to 1 to disable low-frequency attenuation.
 
-ARGUMENT:: highFreq
+ARGUMENT:: hiFreq
 
 The high frequency cutoff.
 
-ARGUMENT:: highRatio
+ARGUMENT:: hiRatio
 
 The ratio of the decay rate for high frequencies. 0.01 to 1 is a safe range. Set this to 1 to disable high-frequency attenuation.
 
@@ -52,29 +52,19 @@ ARGUMENT:: earlyDiffusion
 
 The coefficient for the early reflection Schroeder allpass filters. Ranges from 0 to 1, but most normal reverbs will use 0.5 to 0.9. Higher values have a sharper attack and add metallic coloration to the signal.
 
-ARGUMENT:: earlyModRate
-
-Not currently functional.
-
-Modulation rate for early reflections. Ranges from 0 to 1.
-
-ARGUMENT:: earlyModDepth
-
-Not currently functional.
-
 Modulation depth for early reflections. Ranges from 0 to 1.
 
 ARGUMENT:: lateDiffusion
 
 The coefficient for the late reflection Schroeder allpass filters. Ranges from 0 to 1, but most normal reverbs will use 0.5 to 0.9. Higher values have a sharper attack and add metallic coloration to the signal.
 
-ARGUMENT:: lateModRate
+ARGUMENT:: modRate
 
 Not currently functional.
 
 Modulation rate for late reflections. Ranges from 0 to 1.
 
-ARGUMENT:: lateModDepth
+ARGUMENT:: modDepth
 
 Not currently functional.
 
