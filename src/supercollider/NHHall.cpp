@@ -121,9 +121,11 @@ private:
         float* out_left = out(0);
         float* out_right = out(1);
 
+        float reciprocal_block_size = 1.0f / inNumSamples;
+
         float new_k = m_core.compute_k_from_rt60(rt60);
         float k = m_last_k;
-        float k_ramp = (new_k - m_last_k) / inNumSamples;
+        float k_ramp = (new_k - m_last_k) * reciprocal_block_size;
 
         // The stereo, low shelf, and hi shelf parameters are a bit expensive
         // to update, so I have opted to avoid recomputing them if they are
@@ -138,14 +140,14 @@ private:
             hi_ratio != m_last_hi_ratio
         );
 
-        float stereo_ramp = (stereo - m_last_stereo) / inNumSamples;
-        float low_freq_ramp = (low_freq - m_last_low_freq) / inNumSamples;
-        float low_ratio_ramp = (low_ratio - m_last_low_freq) / inNumSamples;
-        float hi_freq_ramp = (hi_freq - m_last_hi_freq) / inNumSamples;
-        float hi_ratio_ramp = (hi_ratio - m_last_hi_ratio) / inNumSamples;
-        float early_diffusion_ramp = (early_diffusion - m_last_early_diffusion) / inNumSamples;
-        float late_diffusion_ramp = (late_diffusion - m_last_late_diffusion) / inNumSamples;
-        float mod_depth_ramp = (mod_depth - m_last_mod_depth) / inNumSamples;
+        float stereo_ramp = (stereo - m_last_stereo) * reciprocal_block_size;
+        float low_freq_ramp = (low_freq - m_last_low_freq) * reciprocal_block_size;
+        float low_ratio_ramp = (low_ratio - m_last_low_freq) * reciprocal_block_size;
+        float hi_freq_ramp = (hi_freq - m_last_hi_freq) * reciprocal_block_size;
+        float hi_ratio_ramp = (hi_ratio - m_last_hi_ratio) * reciprocal_block_size;
+        float early_diffusion_ramp = (early_diffusion - m_last_early_diffusion) * reciprocal_block_size;
+        float late_diffusion_ramp = (late_diffusion - m_last_late_diffusion) * reciprocal_block_size;
+        float mod_depth_ramp = (mod_depth - m_last_mod_depth) * reciprocal_block_size;
 
         m_last_k = new_k;
         m_last_stereo = stereo;
