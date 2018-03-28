@@ -60,12 +60,8 @@ The coefficient for the late reflection Schroeder allpass filters. Ranges from 0
 
 ARGUMENT:: modRate
 
-Not currently functional.
-
 Modulation rate for late reflections. Ranges from 0 to 1.
 
 ARGUMENT:: modDepth
-
-Not currently functional.
 
 Modulation depth for late reflections. Ranges from 0 to 1.
