@@ -464,10 +464,10 @@ public:
     }},
 
     m_late_delays {{
-        Delay(sample_rate, delay_time_1),
-        Delay(sample_rate, delay_time_2),
-        Delay(sample_rate, delay_time_3),
-        Delay(sample_rate, delay_time_4)
+        Delay(sample_rate, k_delay_time_1),
+        Delay(sample_rate, k_delay_time_2),
+        Delay(sample_rate, k_delay_time_3),
+        Delay(sample_rate, k_delay_time_4)
     }}
 
     {
@@ -517,7 +517,7 @@ public:
     }
 
     inline float compute_k_from_rt60(float rt60) {
-        return powf(0.001f, average_delay_time / rt60);
+        return powf(0.001f, k_average_delay_time / rt60);
     }
 
     inline void set_rt60(float rt60) {
@@ -588,13 +588,13 @@ public:
     }
 
 private:
-    static constexpr float delay_time_1 = 183.6e-3f;
-    static constexpr float delay_time_2 = 94.3e-3f;
-    static constexpr float delay_time_3 = 157.6e-3f;
-    static constexpr float delay_time_4 = 63.6e-3f;
+    static constexpr float k_delay_time_1 = 183.6e-3f;
+    static constexpr float k_delay_time_2 = 94.3e-3f;
+    static constexpr float k_delay_time_3 = 157.6e-3f;
+    static constexpr float k_delay_time_4 = 63.6e-3f;
 
-    static constexpr float average_delay_time =
-        (delay_time_1 + delay_time_2 + delay_time_3 + delay_time_4) / 4.0f;
+    static constexpr float k_average_delay_time =
+        (k_delay_time_1 + k_delay_time_2 + k_delay_time_3 + k_delay_time_4) / 4.0f;
 
     std::unique_ptr<Alloc> m_allocator;
 
