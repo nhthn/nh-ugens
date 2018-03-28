@@ -61,7 +61,7 @@ public:
     {
         set_calc_function<NHHall, &NHHall::next>();
 
-        m_last_k = in0(2);
+        m_last_k = m_core.compute_k_from_rt60(in0(2));
         m_last_stereo = in0(3);
         m_last_low_freq = in0(4);
         m_last_low_ratio = in0(5);
@@ -72,6 +72,7 @@ public:
         float mod_rate = in0(10);
         m_last_mod_depth = in0(11);
 
+        m_core.m_k = m_last_k;
         m_core.set_stereo(m_last_stereo);
         m_core.set_low_shelf_parameters(m_last_low_freq, m_last_low_ratio);
         m_core.set_hi_shelf_parameters(m_last_hi_freq, m_last_hi_ratio);
