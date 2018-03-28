@@ -69,7 +69,7 @@ public:
         m_last_hi_ratio = in0(7);
         m_last_early_diffusion = in0(8);
         m_last_late_diffusion = in0(9);
-        m_last_mod_rate = in0(10);
+        float mod_rate = in0(10);
         m_last_mod_depth = in0(11);
 
         m_core.set_stereo(m_last_stereo);
@@ -77,6 +77,8 @@ public:
         m_core.set_hi_shelf_parameters(m_last_hi_freq, m_last_hi_ratio);
         m_core.set_early_diffusion(m_last_early_diffusion);
         m_core.set_late_diffusion(m_last_late_diffusion);
+        m_core.set_mod_rate(mod_rate);
+        m_core.set_mod_depth(m_last_mod_depth);
     }
     catch (const real_time_allocation_failed& ex) {
         printf("Could not allocate real-time memory for NHHall\n");
@@ -100,7 +102,6 @@ private:
     float m_last_hi_ratio;
     float m_last_early_diffusion;
     float m_last_late_diffusion;
-    float m_last_mod_rate;
     float m_last_mod_depth;
 
     void clear(int inNumSamples) {
@@ -148,6 +149,7 @@ private:
         float hi_ratio_ramp = (hi_ratio - m_last_hi_ratio) / inNumSamples;
         float early_diffusion_ramp = (early_diffusion - m_last_early_diffusion) / inNumSamples;
         float late_diffusion_ramp = (late_diffusion - m_last_late_diffusion) / inNumSamples;
+        float mod_depth_ramp = (mod_depth - m_last_mod_depth) / inNumSamples;
 
         m_last_k = new_k;
         m_last_stereo = stereo;
@@ -157,6 +159,9 @@ private:
         m_last_hi_ratio = hi_ratio;
         m_last_early_diffusion = early_diffusion;
         m_last_late_diffusion = late_diffusion;
+        m_last_mod_depth = mod_depth;
+
+        m_core.set_mod_rate(mod_rate);
 
         for (int i = 0; i < inNumSamples; i++) {
             m_core.m_k = k;
@@ -184,6 +189,9 @@ private:
 
             late_diffusion += late_diffusion_ramp;
             m_core.set_late_diffusion(late_diffusion);
+
+            mod_depth += mod_depth_ramp;
+            m_core.set_mod_depth(mod_depth);
 
             std::array<float, 2> result = m_core.process(in_left[i], in_right[i]);
             out_left[i] = result[0];

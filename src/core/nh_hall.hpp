@@ -82,7 +82,6 @@ private:
     float m_sine;
 };
 
-// TODO: Sample-rate invariance is not established here.
 class RandomLFO {
 public:
     RandomLFO(
@@ -98,14 +97,17 @@ public:
         return result;
     }
 
-    void set_frequency(float frequency) {
-        m_frequency = frequency;
+    void set_rate(float rate) {
+        rate = std::max(rate, 0.0f);
+        m_frequency =
+            k_min_lfo_frequency
+            + rate * (k_max_lfo_frequency - k_min_lfo_frequency);
     }
 
     Stereo process(void) {
         if (m_timeout <= 0) {
-            m_timeout = (run_lcg() >> 3) * 3.0f / m_frequency;
-            m_increment = (run_lcg() * (1.0f / 32767.0f) - 0.5f) / m_sample_rate * m_frequency;
+            m_timeout = run_lcg() * 0.1f / m_frequency * m_sample_rate / 48000.0f;
+            m_increment = (run_lcg() * (1.0f / 32767.0f) - 0.5f) * m_frequency / m_sample_rate;
         }
         m_timeout -= 1;
         m_phase += m_increment;
@@ -121,7 +123,10 @@ private:
 
     float m_increment = 0.f;
     float m_phase = 0.f;
-    float m_frequency = 12.f;
+    float m_frequency = 10.f;
+
+    static constexpr float k_min_lfo_frequency = 1.0f;
+    static constexpr float k_max_lfo_frequency = 20.0f;
 };
 
 class DCBlocker {
@@ -528,10 +533,18 @@ public:
         }
     }
 
+    inline void set_mod_rate(float mod_rate) {
+        m_lfo.set_rate(mod_rate);
+    }
+
+    inline void set_mod_depth(float mod_depth) {
+        m_mod_depth = mod_depth;
+    }
+
     Stereo process(Stereo in) {
         Stereo lfo = m_lfo.process();
-        lfo[0] *= k_max_mod_depth * 0.5f;
-        lfo[1] *= -k_max_mod_depth * 0.5f;
+        lfo[0] *= k_max_mod_depth * m_mod_depth;
+        lfo[1] *= -k_max_mod_depth * m_mod_depth;
 
         Stereo early = process_early(in);
 
@@ -569,8 +582,10 @@ private:
 
     Stereo m_feedback = {{0.f, 0.f}};
 
-    float m_rotate_cos = 0.0;
-    float m_rotate_sin = 1.0;
+    float m_rotate_cos = 0.0f;
+    float m_rotate_sin = 1.0f;
+
+    float m_mod_depth = 0.5f;
 
     RandomLFO m_lfo;
     DCBlocker m_dc_blocker;
