@@ -21,6 +21,10 @@ CK_DLL_MFUN(nhhall_getEarlyDiffusion);
 CK_DLL_MFUN(nhhall_setEarlyDiffusion);
 CK_DLL_MFUN(nhhall_getLateDiffusion);
 CK_DLL_MFUN(nhhall_setLateDiffusion);
+CK_DLL_MFUN(nhhall_getModRate);
+CK_DLL_MFUN(nhhall_setModRate);
+CK_DLL_MFUN(nhhall_getModDepth);
+CK_DLL_MFUN(nhhall_setModDepth);
 
 CK_DLL_TICKF(nhhall_tickf);
 
@@ -37,8 +41,8 @@ public:
     float m_hiRatio = 0.5;
     float m_earlyDiffusion = 0.5;
     float m_lateDiffusion = 0.5;
-    float m_lateModRate = 0.5;
-    float m_lateModDepth = 0.5;
+    float m_modRate = 0.2;
+    float m_modDepth = 0.3;
 
     NHHall(float sample_rate)
     : m_core(sample_rate)
@@ -49,6 +53,8 @@ public:
         m_core.set_hi_shelf_parameters(m_hiFreq, m_hiRatio);
         m_core.set_early_diffusion(m_earlyDiffusion);
         m_core.set_late_diffusion(m_lateDiffusion);
+        m_core.set_mod_rate(m_modRate);
+        m_core.set_mod_rate(m_modDepth);
     }
 };
 
@@ -96,13 +102,13 @@ CK_DLL_QUERY(NHHall) {
     QUERY->add_arg(QUERY, "float", "arg");
     QUERY->add_mfun(QUERY, nhhall_getLateDiffusion, "float", "lateDiffusion");
 
-    // QUERY->add_mfun(QUERY, nhhall_setLateModRate, "float", "lateModRate");
-    // QUERY->add_arg(QUERY, "float", "arg");
-    // QUERY->add_mfun(QUERY, nhhall_getLateModRate, "float", "lateModRate");
+    QUERY->add_mfun(QUERY, nhhall_setModRate, "float", "modRate");
+    QUERY->add_arg(QUERY, "float", "arg");
+    QUERY->add_mfun(QUERY, nhhall_getModRate, "float", "modRate");
 
-    // QUERY->add_mfun(QUERY, nhhall_setLateModDepth, "float", "lateModDepth");
-    // QUERY->add_arg(QUERY, "float", "arg");
-    // QUERY->add_mfun(QUERY, nhhall_getLateModDepth, "float", "lateModDepth");
+    QUERY->add_mfun(QUERY, nhhall_setModDepth, "float", "modDepth");
+    QUERY->add_arg(QUERY, "float", "arg");
+    QUERY->add_mfun(QUERY, nhhall_getModDepth, "float", "modDepth");
 
     nhhall_unit_offset = QUERY->add_mvar(QUERY, "int", "@data", false);
 
@@ -236,4 +242,28 @@ CK_DLL_MFUN(nhhall_setLateDiffusion) {
     unit->m_lateDiffusion = GET_NEXT_DUR(ARGS);
     unit->m_core.set_late_diffusion(unit->m_lateDiffusion);
     RETURN->v_float = unit->m_lateDiffusion;
+}
+
+CK_DLL_MFUN(nhhall_getModRate) {
+    NHHall* unit = (NHHall*)OBJ_MEMBER_INT(SELF, nhhall_unit_offset);
+    RETURN->v_float = unit->m_modRate;
+}
+
+CK_DLL_MFUN(nhhall_setModRate) {
+    NHHall* unit = (NHHall*)OBJ_MEMBER_INT(SELF, nhhall_unit_offset);
+    unit->m_modRate = GET_NEXT_DUR(ARGS);
+    unit->m_core.set_mod_rate(unit->m_modRate);
+    RETURN->v_float = unit->m_modRate;
+}
+
+CK_DLL_MFUN(nhhall_getModDepth) {
+    NHHall* unit = (NHHall*)OBJ_MEMBER_INT(SELF, nhhall_unit_offset);
+    RETURN->v_float = unit->m_modDepth;
+}
+
+CK_DLL_MFUN(nhhall_setModDepth) {
+    NHHall* unit = (NHHall*)OBJ_MEMBER_INT(SELF, nhhall_unit_offset);
+    unit->m_modDepth = GET_NEXT_DUR(ARGS);
+    unit->m_core.set_mod_depth(unit->m_modDepth);
+    RETURN->v_float = unit->m_modDepth;
 }
