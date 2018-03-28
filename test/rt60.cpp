@@ -3,7 +3,7 @@
 
 void find_rt60(float k, float time) {
     float sample_rate = 48000.0f;
-    nh_ugens::Unit<> core(sample_rate);
+    nh_ugens::NHHall<> core(sample_rate);
 
     core.m_k = k;
 

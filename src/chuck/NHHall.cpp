@@ -31,7 +31,7 @@ CK_DLL_TICKF(nhhall_tickf);
 class NHHall {
 public:
     // NOTE: The default allocator calls malloc.
-    nh_ugens::Unit<> m_core;
+    nh_ugens::NHHall<> m_core;
 
     float m_rt60 = 1.0f;
     float m_stereo = 0.5;

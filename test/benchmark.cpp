@@ -10,7 +10,7 @@ float rfloat(void) {
 float bench(void) {
     float sample_rate = 48000.0f;
 
-    nh_ugens::Unit<> core(sample_rate);
+    nh_ugens::NHHall<> core(sample_rate);
 
     timeval time_before;
     timeval time_after;

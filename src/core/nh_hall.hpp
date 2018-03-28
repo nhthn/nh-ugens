@@ -414,11 +414,11 @@ private:
 
 /* NHHall allows you to pass in a memory allocator of your choice. */
 template <class Alloc = Allocator>
-class Unit {
+class NHHall {
 public:
     float m_k;
 
-    Unit(
+    NHHall(
         float sample_rate,
         std::unique_ptr<Alloc> allocator
     ) :
@@ -492,13 +492,13 @@ public:
 
     // If no allocator object is passed in, we try to make one ourselves by
     // calling the constructor with no arguments.
-    Unit(
+    NHHall(
         float sample_rate
     ) :
-    Unit(sample_rate, std::unique_ptr<Alloc>(new Alloc()))
+    NHHall(sample_rate, std::unique_ptr<Alloc>(new Alloc()))
     { }
 
-    ~Unit() {
+    ~NHHall() {
         for (auto& x : m_early_allpasses) {
             free_delay_line(x);
         }

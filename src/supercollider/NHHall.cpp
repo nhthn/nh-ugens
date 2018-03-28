@@ -94,7 +94,7 @@ public:
     }
 
 private:
-    nh_ugens::Unit<SCAllocator> m_core;
+    nh_ugens::NHHall<SCAllocator> m_core;
     float m_last_k;
     float m_last_stereo;
     float m_last_low_freq;
