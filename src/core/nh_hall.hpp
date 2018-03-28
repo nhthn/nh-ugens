@@ -347,10 +347,10 @@ public:
         return out;
     }
 
-    float tap(float delay, float gain) {
+    float tap(float delay) {
         int delay_in_samples = delay * m_sample_rate;
         int position = m_read_position - 1 - delay_in_samples;
-        float out = gain * m_buffer[position & m_mask];
+        float out = m_buffer[position & m_mask];
         return out;
     }
 };
@@ -614,10 +614,10 @@ public:
     }
 
 private:
-    static constexpr float k_delay_time_1 = 183.6e-3f;
+    static constexpr float k_delay_time_1 = 153.6e-3f;
     static constexpr float k_delay_time_2 = 94.3e-3f;
-    static constexpr float k_delay_time_3 = 157.6e-3f;
-    static constexpr float k_delay_time_4 = 63.6e-3f;
+    static constexpr float k_delay_time_3 = 187.6e-3f;
+    static constexpr float k_delay_time_4 = 123.6e-3f;
 
     static constexpr float k_average_delay_time =
         (k_delay_time_1 + k_delay_time_2 + k_delay_time_3 + k_delay_time_4) / 4.0f;
@@ -734,19 +734,19 @@ private:
 
         Stereo out = {{early[0] * 0.5f, early[1] * 0.5f}};
 
-        float haas_multiplier = -0.3f;
+        float haas_multiplier = -0.6f;
 
-        out[0] += m_late_delays[0].tap(0.0e-3f, 1.0f);
-        out[1] += m_late_delays[0].tap(0.3e-3f, haas_multiplier);
+        out[0] += m_late_delays[0].tap(0.0e-3f);
+        out[1] += m_late_delays[0].tap(0.3e-3f) * haas_multiplier;
 
-        out[0] += m_late_delays[1].tap(0.0e-3f, 1.0f);
-        out[1] += m_late_delays[1].tap(0.1e-3f, haas_multiplier);
+        out[0] += m_late_delays[1].tap(0.0e-3f);
+        out[1] += m_late_delays[1].tap(0.1e-3f) * haas_multiplier;
 
-        out[0] += m_late_delays[2].tap(0.7e-3f, haas_multiplier);
-        out[1] += m_late_delays[2].tap(0.0e-3f, 1.0f);
+        out[0] += m_late_delays[2].tap(0.7e-3f) * haas_multiplier;
+        out[1] += m_late_delays[2].tap(0.0e-3f);
 
-        out[0] += m_late_delays[3].tap(0.2e-3f, haas_multiplier);
-        out[1] += m_late_delays[3].tap(0.0e-3f, 1.0f);
+        out[0] += m_late_delays[3].tap(0.2e-3f) * haas_multiplier;
+        out[1] += m_late_delays[3].tap(0.0e-3f);
 
         return out;
     }
