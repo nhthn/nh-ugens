@@ -26,15 +26,20 @@ SOFTWARE.
 #include <array> // std::array
 #include <cmath> // cosf/sinf
 
-/*
-TODO:
-
-- Improve handling of denormals
-*/
-
 namespace nh_ugens {
 
 typedef std::array<float, 2> Stereo;
+
+static inline float flush_denormals(float x) {
+    x += 1.0e-25;
+    x -= 1.0e-25;
+    return x;
+}
+
+static inline Stereo flush_denormals(Stereo x) {
+    Stereo result = {{flush_denormals(x[0]), flush_denormals(x[1])}};
+    return result;
+}
 
 static inline int next_power_of_two(int x) {
     int result = 1;
@@ -232,8 +237,8 @@ public:
             - m_a1 * m_y1 - m_a2 * m_y2;
         m_x2 = m_x1;
         m_x1 = in;
-        m_y2 = m_y1;
-        m_y1 = out;
+        m_y2 = flush_denormals(m_y1);
+        m_y1 = flush_denormals(out);
         return out;
     }
 
@@ -278,8 +283,8 @@ public:
             - m_a1 * m_y1 - m_a2 * m_y2;
         m_x2 = m_x1;
         m_x1 = in;
-        m_y2 = m_y1;
-        m_y1 = out;
+        m_y2 = flush_denormals(m_y1);
+        m_y1 = flush_denormals(out);
         return out;
     }
 
@@ -372,7 +377,7 @@ public:
     float process(float in) {
         float delayed_signal = m_buffer[(m_read_position - m_delay_in_samples) & m_mask];
         float feedback_plus_input = in + delayed_signal * m_k;
-        m_buffer[m_read_position] = feedback_plus_input;
+        m_buffer[m_read_position] = flush_denormals(feedback_plus_input);
         m_read_position = (m_read_position + 1) & m_mask;
         float out = feedback_plus_input * -m_k + delayed_signal;
         return out;
@@ -422,7 +427,7 @@ public:
         float delayed_signal = interpolate_cubic(position_frac, y0, y1, y2, y3);
 
         float feedback_plus_input = in + delayed_signal * m_k;
-        m_buffer[m_read_position] = feedback_plus_input;
+        m_buffer[m_read_position] = flush_denormals(feedback_plus_input);
         m_read_position = (m_read_position + 1) & m_mask;
         float out = feedback_plus_input * -m_k + delayed_signal;
 
@@ -598,7 +603,7 @@ public:
             process_late_right(early[1], lfo)
         }};
         late = rotate(late, m_rotate_cos, m_rotate_sin);
-        m_feedback = late;
+        m_feedback = flush_denormals(late);
 
         return out;
     }
