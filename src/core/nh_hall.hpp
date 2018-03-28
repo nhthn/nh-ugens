@@ -52,8 +52,7 @@ static float interpolate_cubic(float x, float y0, float y1, float y2, float y3) 
     return ((c3 * x + c2) * x + c1) * x + c0;
 }
 
-// Unitary rotation matrix. Angle is given in radians.
-// TODO: optimize
+// Unitary rotation matrix.
 static inline Stereo rotate(Stereo x, float cos, float sin) {
     Stereo result = {
         cos * x[0] - sin * x[1],
