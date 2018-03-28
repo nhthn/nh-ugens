@@ -8,7 +8,6 @@
 TODO:
 
 - Improve handling of denormals
-- Implement cubic interpolation
 */
 
 namespace nh_ugens {
@@ -27,7 +26,7 @@ static float interpolate_cubic(float x, float y0, float y1, float y2, float y3) 
     float c0 = y1;
     float c1 = y2 - 1 / 3.0 * y0 - 1 / 2.0 * y1 - 1 / 6.0 * y3;
     float c2 = 1 / 2.0 * (y0 + y2) - y1;
-    float c3 = 1 / 6.0 * (y3 - y0) + 1/2.0 * (y1 - y0);
+    float c3 = 1 / 6.0 * (y3 - y0) + 1 / 2.0 * (y1 - y2);
     return ((c3 * x + c2) * x + c1) * x + c0;
 }
 
