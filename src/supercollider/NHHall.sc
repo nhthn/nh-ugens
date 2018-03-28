@@ -10,8 +10,8 @@ NHHall : MultiOutUGen {
             hiRatio = 0.5,
             earlyDiffusion = 0.5,
             lateDiffusion = 0.5,
-            modRate = 0.5,
-            modDepth = 0.5
+            modRate = 0.2,
+            modDepth = 0.3
         |
         in = in.asArray;
         if(in.size != 2) {

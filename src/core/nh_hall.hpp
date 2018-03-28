@@ -89,6 +89,7 @@ public:
     ) :
     m_sample_rate(sample_rate)
     {
+        update_amplitude();
     }
 
     inline uint16_t run_lcg(void) {
@@ -100,8 +101,15 @@ public:
     void set_rate(float rate) {
         rate = std::max(rate, 0.0f);
         m_frequency =
-            k_min_lfo_frequency
-            + rate * (k_max_lfo_frequency - k_min_lfo_frequency);
+            k_min_frequency
+            + rate * (k_max_frequency - k_min_frequency);
+        update_amplitude();
+    }
+
+    void set_depth(float depth) {
+        depth = std::max(std::min(depth, 1.0f), 0.0f);
+        m_depth = depth;
+        update_amplitude();
     }
 
     Stereo process(void) {
@@ -112,7 +120,10 @@ public:
         m_timeout -= 1;
         m_phase += m_increment;
         // TODO: optimize
-        Stereo result = {{sinf(m_phase), cosf(m_phase)}};
+        Stereo result = {{
+            sinf(m_phase) * m_amplitude,
+            cosf(m_phase) * m_amplitude
+        }};
         return result;
     }
 
@@ -121,12 +132,23 @@ private:
     uint32_t m_lcg_state = 1;
     int m_timeout = 0;
 
+    float m_depth = 0.5f;
+
     float m_increment = 0.f;
     float m_phase = 0.f;
     float m_frequency = 10.f;
+    float m_amplitude;
 
-    static constexpr float k_min_lfo_frequency = 1.0f;
-    static constexpr float k_max_lfo_frequency = 20.0f;
+    static constexpr float k_min_frequency = 1.0f;
+    static constexpr float k_max_frequency = 50.0f;
+    static constexpr float k_max_depth = 5e-3f;
+
+    void update_amplitude(void) {
+        m_amplitude = m_depth * k_max_depth / m_frequency;
+    }
+
+public:
+    static constexpr float k_max_amplitude = k_max_depth / k_min_frequency;
 };
 
 class DCBlocker {
@@ -426,10 +448,10 @@ public:
     }},
 
     m_late_variable_allpasses {{
-        VariableAllpass(sample_rate, 25.6e-3f, k_max_mod_depth, 1),
-        VariableAllpass(sample_rate, 50.7e-3f, k_max_mod_depth, -1),
-        VariableAllpass(sample_rate, 68.6e-3f, k_max_mod_depth, 1),
-        VariableAllpass(sample_rate, 45.7e-3f, k_max_mod_depth, -1)
+        VariableAllpass(sample_rate, 25.6e-3f, RandomLFO::k_max_amplitude, 1),
+        VariableAllpass(sample_rate, 50.7e-3f, RandomLFO::k_max_amplitude, -1),
+        VariableAllpass(sample_rate, 68.6e-3f, RandomLFO::k_max_amplitude, 1),
+        VariableAllpass(sample_rate, 45.7e-3f, RandomLFO::k_max_amplitude, -1)
     }},
 
     m_late_allpasses {{
@@ -538,13 +560,11 @@ public:
     }
 
     inline void set_mod_depth(float mod_depth) {
-        m_mod_depth = mod_depth;
+        m_lfo.set_depth(mod_depth);
     }
 
     Stereo process(Stereo in) {
         Stereo lfo = m_lfo.process();
-        lfo[0] *= k_max_mod_depth * m_mod_depth;
-        lfo[1] *= -k_max_mod_depth * m_mod_depth;
 
         Stereo early = process_early(in);
 
@@ -574,8 +594,6 @@ private:
     static constexpr float average_delay_time =
         (delay_time_1 + delay_time_2 + delay_time_3 + delay_time_4) / 4.0f;
 
-    static constexpr float k_max_mod_depth = 0.45e-3f;
-
     std::unique_ptr<Alloc> m_allocator;
 
     const float m_sample_rate;
@@ -584,8 +602,6 @@ private:
 
     float m_rotate_cos = 0.0f;
     float m_rotate_sin = 1.0f;
-
-    float m_mod_depth = 0.5f;
 
     RandomLFO m_lfo;
     DCBlocker m_dc_blocker;
@@ -666,7 +682,7 @@ private:
         sig += m_feedback[1];
 
         sig += early_right;
-        sig = m_late_variable_allpasses[2].process(sig, -lfo[0]);
+        sig = m_late_variable_allpasses[2].process(sig, lfo[0]);
         sig = m_late_allpasses[2].process(sig);
         sig *= m_k;
         sig = m_late_delays[2].process(sig);
@@ -674,7 +690,7 @@ private:
         sig = m_hi_shelves[2].process(sig);
 
         sig += early_right;
-        sig = m_late_variable_allpasses[3].process(sig, -lfo[1]);
+        sig = m_late_variable_allpasses[3].process(sig, lfo[1]);
         sig = m_late_allpasses[3].process(sig);
         sig *= m_k;
         sig = m_late_delays[3].process(sig);
