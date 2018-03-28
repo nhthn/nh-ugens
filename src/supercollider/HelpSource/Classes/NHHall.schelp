@@ -10,7 +10,7 @@ This provides only the wet signal. A practical reverb should generally have a we
 
 For a mono-to-stereo reverb, turn the input signal into a stereo signal with Pan2. For a mono-to-mono reverb, turn the stereo spread up to 1 and use only the left or right output channel. It is not advisable to sum the two channels together due to the use of the Haas effect in the output taps.
 
-The reverb can be frozen by multiplying the input by 0 and setting the reverberation time to infinity. This results in some very strange, evolving artifacts if held for an extended period.
+The reverb can be frozen by multiplying the input by 0 and setting the reverberation time to infinity.
 
 This reverb was written by Nathan Ho specifically for SuperCollider, ChucK, and Auraglyph (an open source modular synth for iPad).
 
