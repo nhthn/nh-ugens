@@ -301,7 +301,7 @@ private:
 class BaseDelay {
 public:
     int m_size;
-    float* m_buffer;
+    float* m_buffer = nullptr;
 
     BaseDelay(
         float sample_rate,
@@ -443,6 +443,7 @@ template <class Alloc = Allocator>
 class NHHall {
 public:
     float m_k;
+    bool m_initialization_was_successful;
 
     NHHall(
         float sample_rate,
@@ -499,21 +500,7 @@ public:
     {
         m_k = 0.0f;
 
-        for (auto& x : m_early_allpasses) {
-            allocate_delay_line(x);
-        }
-        for (auto& x : m_early_delays) {
-            allocate_delay_line(x);
-        }
-        for (auto& x : m_late_variable_allpasses) {
-            allocate_delay_line(x);
-        }
-        for (auto& x : m_late_allpasses) {
-            allocate_delay_line(x);
-        }
-        for (auto& x : m_late_delays) {
-            allocate_delay_line(x);
-        }
+        m_initialization_was_successful = allocate_delay_lines();
     }
 
     // If no allocator object is passed in, we try to make one ourselves by
@@ -525,21 +512,7 @@ public:
     { }
 
     ~NHHall() {
-        for (auto& x : m_early_allpasses) {
-            free_delay_line(x);
-        }
-        for (auto& x : m_early_delays) {
-            free_delay_line(x);
-        }
-        for (auto& x : m_late_variable_allpasses) {
-            free_delay_line(x);
-        }
-        for (auto& x : m_late_allpasses) {
-            free_delay_line(x);
-        }
-        for (auto& x : m_late_delays) {
-            free_delay_line(x);
-        }
+        free_delay_lines();
     }
 
     inline float compute_k_from_rt60(float rt60) {
@@ -646,14 +619,72 @@ private:
     std::array<Allpass, 4> m_late_allpasses;
     std::array<Delay, 4> m_late_delays;
 
-    void allocate_delay_line(BaseDelay& delay) {
+    bool allocate_delay_lines() {
+        for (auto& x : m_early_allpasses) {
+            bool success = allocate_delay_line(x);
+            if (!success) {
+                return false;
+            }
+        }
+        for (auto& x : m_early_delays) {
+            bool success = allocate_delay_line(x);
+            if (!success) {
+                return false;
+            }
+        }
+        for (auto& x : m_late_variable_allpasses) {
+            bool success = allocate_delay_line(x);
+            if (!success) {
+                return false;
+            }
+        }
+        for (auto& x : m_late_allpasses) {
+            bool success = allocate_delay_line(x);
+            if (!success) {
+                return false;
+            }
+        }
+        for (auto& x : m_late_delays) {
+            bool success = allocate_delay_line(x);
+            if (!success) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void free_delay_lines() {
+        for (auto& x : m_early_allpasses) {
+            free_delay_line(x);
+        }
+        for (auto& x : m_early_delays) {
+            free_delay_line(x);
+        }
+        for (auto& x : m_late_variable_allpasses) {
+            free_delay_line(x);
+        }
+        for (auto& x : m_late_allpasses) {
+            free_delay_line(x);
+        }
+        for (auto& x : m_late_delays) {
+            free_delay_line(x);
+        }
+    }
+
+    bool allocate_delay_line(BaseDelay& delay) {
         void* memory = m_allocator->allocate(sizeof(float) * delay.m_size);
+        if (!memory) {
+            return false;
+        }
         delay.m_buffer = static_cast<float*>(memory);
         memset(delay.m_buffer, 0, sizeof(float) * delay.m_size);
+        return true;
     }
 
     void free_delay_line(BaseDelay& delay) {
-        m_allocator->deallocate(delay.m_buffer);
+        if (delay.m_buffer != nullptr) {
+            m_allocator->deallocate(delay.m_buffer);
+        }
     }
 
     inline Stereo process_early(Stereo in) {

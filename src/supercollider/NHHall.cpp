@@ -30,20 +30,13 @@ For more information, please refer to <http://unlicense.org>
 
 static InterfaceTable* ft;
 
-// FIXME: throwing exceptions is not real-time safe!!!
-class real_time_allocation_failed : public std::exception { };
-
 class SCAllocator {
 public:
     World* m_world;
     SCAllocator(World* world) : m_world(world) { }
 
     void* ASSUME_ALIGNED(64) allocate(int memory_size) {
-        void* memory = RTAlloc(m_world, memory_size);
-        if (memory == nullptr) {
-            throw real_time_allocation_failed();
-        }
-        return memory;
+        return RTAlloc(m_world, memory_size);
     }
 
     void deallocate(void* memory) {
@@ -53,12 +46,18 @@ public:
 
 struct NHHall : public SCUnit {
 public:
-    NHHall() try :
+    NHHall() :
     m_core(
         sampleRate(),
         std::unique_ptr<SCAllocator>(new SCAllocator(mWorld))
     )
     {
+        if (!m_core.m_initialization_was_successful) {
+            printf("Could not allocate real-time memory for NHHall\n");
+            set_calc_function<NHHall, &NHHall::clear>();
+            return;
+        }
+
         set_calc_function<NHHall, &NHHall::next>();
 
         m_last_k = m_core.compute_k_from_rt60(in0(2));
@@ -80,10 +79,6 @@ public:
         m_core.set_late_diffusion(m_last_late_diffusion);
         m_core.set_mod_rate(mod_rate);
         m_core.set_mod_depth(m_last_mod_depth);
-    }
-    catch (const real_time_allocation_failed& ex) {
-        printf("Could not allocate real-time memory for NHHall\n");
-        set_calc_function<NHHall, &NHHall::clear>();
     }
 
     template <typename UnitType, void (UnitType::*PointerToMember)(int)>
