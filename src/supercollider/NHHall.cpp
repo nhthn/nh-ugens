@@ -44,7 +44,7 @@ public:
     }
 };
 
-struct NHHall : public SCUnit {
+class NHHall : public SCUnit {
 public:
     NHHall() :
     m_core(
