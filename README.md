@@ -1,5 +1,3 @@
-## nh-ugens
-
 **NHHall** is an open source algorithmic reverb unit in a single C++11 header file (`src/core/nh_hall.hpp`). Features:
 
 - Allpass loop topology with delay line modulaton for a lush 90's IDM sound
