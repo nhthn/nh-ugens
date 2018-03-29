@@ -18,17 +18,12 @@ It was written specifically for [SuperCollider], [ChucK], and [Auraglyph] in res
 
 ## Compilation
 
+Building for SuperCollider is available through an [sc3-plugins PR](https://github.com/supercollider/sc3-plugins/pull/193).
+
 To compile, first create a build directory:
 
     mkdir build
     cd build
-
-To build for SuperCollider, turn on the `SUPERCOLLIDER` flag and set `SC_PATH` correctly:
-
-    cmake -DSUPERCOLLIDER=ON ..
-    cmake -DSC_PATH=/path/to/supercollider ..
-
-Here, `/path/to/supercollider` is the path to a copy of the SuperCollider **source code**.
 
 To build for ChucK, turn on the `CHUCK` flag and set `CHUCK_PATH` correctly:
 
