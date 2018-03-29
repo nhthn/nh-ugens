@@ -664,14 +664,18 @@ public:
     }
 
     inline void set_low_shelf_parameters(float frequency, float ratio) {
+        float k = powf(m_k, 1.0f / ratio - 1.0f);
+        k = std::max(k, 0.01f);
         for (auto& x : m_low_shelves) {
-            x.set_parameters(frequency, ratio);
+            x.set_parameters(frequency, k);
         }
     }
 
     inline void set_hi_shelf_parameters(float frequency, float ratio) {
+        float k = powf(m_k, 1.0f / ratio - 1.0f);
+        k = std::max(k, 0.01f);
         for (auto& x : m_hi_shelves) {
-            x.set_parameters(frequency, ratio);
+            x.set_parameters(frequency, k);
         }
     }
 

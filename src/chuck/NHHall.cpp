@@ -157,6 +157,8 @@ CK_DLL_MFUN(nhhall_setRt60) {
     NHHall* unit = (NHHall*)OBJ_MEMBER_INT(SELF, nhhall_unit_offset);
     unit->m_rt60 = GET_NEXT_DUR(ARGS);
     unit->m_core.set_rt60(unit->m_rt60);
+    unit->m_core.set_low_shelf_parameters(unit->m_lowFreq, unit->m_lowRatio);
+    unit->m_core.set_hi_shelf_parameters(unit->m_hiFreq, unit->m_hiRatio);
     RETURN->v_float = unit->m_rt60;
 }
 
