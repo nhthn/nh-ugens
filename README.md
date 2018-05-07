@@ -10,7 +10,7 @@
 - Permissive MIT license
 - Clean, readable source code for easy modification
 
-It was written specifically for [SuperCollider], [ChucK], and [Auraglyph] in response to the lack of good reverbs on these platforms.
+It was written specifically for [SuperCollider], [ChucK], and [Auraglyph].
 
 [SuperCollider]: https://supercollider.github.io/
 [ChucK]: http://chuck.stanford.edu/
@@ -18,7 +18,7 @@ It was written specifically for [SuperCollider], [ChucK], and [Auraglyph] in res
 
 ## Compilation
 
-Building for SuperCollider is available through an [sc3-plugins PR](https://github.com/supercollider/sc3-plugins/pull/193).
+The SuperCollider version is available in the [sc3-plugins](https://github.com/supercollider/sc3-plugins) distribution.
 
 To compile, first create a build directory:
 
