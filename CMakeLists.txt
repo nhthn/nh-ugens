@@ -8,7 +8,4 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
     endif()
 endif()
 
-if(${CHUCK})
-    add_subdirectory(src/chuck)
-endif()
 add_subdirectory(test)

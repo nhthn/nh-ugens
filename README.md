@@ -16,22 +16,6 @@ It was written specifically for [SuperCollider], [ChucK], and [Auraglyph].
 [ChucK]: http://chuck.stanford.edu/
 [Auraglyph]: http://auraglyph.com/
 
-## Compilation
+## Usage
 
-The SuperCollider version is available in the [sc3-plugins](https://github.com/supercollider/sc3-plugins) distribution.
-
-To compile, first create a build directory:
-
-    mkdir build
-    cd build
-
-To build for ChucK, turn on the `CHUCK` flag and set `CHUCK_PATH` correctly:
-
-    cmake -DCHUCK=ON ..
-    cmake -DCHUCK_PATH=/path/to/chuck ..
-
-Here, `/path/to/chuck` is the path to a copy of the ChucK source code.
-
-All CMake options set with `-D` are persistent, so there is no need to run them multiple times unless you are changing values.
-
-After picking your options, run `make`.
+NHHall is included in the [sc3-plugins](https://github.com/supercollider/sc3-plugins) distribution of SuperCollider and the [chugins](https://github.com/ccrma/chugins) distribution of ChucK. Be sure to get recent versions as of May 2018.
