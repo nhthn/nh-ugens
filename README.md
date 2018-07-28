@@ -10,12 +10,12 @@
 - Permissive MIT license
 - Clean, readable source code for easy modification
 
-It was written specifically for [SuperCollider], [ChucK], and [Auraglyph].
+It was written specifically for [SuperCollider] and [ChucK].
 
 [SuperCollider]: https://supercollider.github.io/
 [ChucK]: http://chuck.stanford.edu/
-[Auraglyph]: http://auraglyph.com/
 
-## Usage
+## Install
 
-NHHall is included in the [sc3-plugins](https://github.com/supercollider/sc3-plugins) distribution of SuperCollider and the [chugins](https://github.com/ccrma/chugins) distribution of ChucK. Be sure to get recent versions as of May 2018.
+- SuperCollider users: NHHall is in the [sc3-plugins](https://github.com/supercollider/sc3-plugins) distribution. As of June 2018, you will need to build the latest unreleased version of sc3-plugins to get this UGen.
+- ChucK users: NHHall is in the [chugins](https://github.com/ccrma/chugins) distribution. As of June 2018, you will need to build the latest unreleased version of sc3-plugins to get this UGen.
