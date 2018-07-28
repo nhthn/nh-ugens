@@ -17,5 +17,5 @@ It was written specifically for [SuperCollider] and [ChucK].
 
 ## Install
 
-- SuperCollider users: NHHall is in the [sc3-plugins](https://github.com/supercollider/sc3-plugins) distribution. As of June 2018, you will need to build the latest unreleased version of sc3-plugins to get this UGen.
-- ChucK users: NHHall is in the [chugins](https://github.com/ccrma/chugins) distribution. As of June 2018, you will need to build the latest unreleased version of sc3-plugins to get this UGen.
+- SuperCollider users: NHHall is in the [sc3-plugins](https://github.com/supercollider/sc3-plugins) distribution. As of July 2018, you will need to build the latest unreleased version of sc3-plugins to get this UGen. See the NHHall help file for usage.
+- ChucK users: NHHall is in the [chugins](https://github.com/ccrma/chugins) distribution. As of July 2018, you will need to build the latest unreleased version of sc3-plugins to get this UGen. See [this example code](https://github.com/ccrma/chugins/blob/master/NHHall/nhhall-help.ck) for usage.
