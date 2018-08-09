@@ -1,6 +1,6 @@
 **NHHall** is an open source algorithmic reverb unit in a single C++11 header file (`src/core/nh_hall.hpp`). Features:
 
-- Allpass loop topology with delay line modulaton for a lush 90's IDM sound
+- Allpass loop topology with random modulation for a lush 90's IDM sound
 - True stereo signal path with controllable spread
 - Infinite hold support
 - Respectable CPU use
