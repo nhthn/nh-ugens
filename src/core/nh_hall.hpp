@@ -1,6 +1,6 @@
 /*
 NHHall -- a stereo reverb
-Version 2018-06-24
+Version 2019-02-24
 
 https://github.com/snappizz/nh-ugens
 
@@ -351,45 +351,30 @@ public:
     HiShelf(
         float sample_rate
     ) :
-    m_sample_rate(sample_rate)
+    m_sample_dur(1.0f / sample_rate)
     {
     }
 
-    void set_parameters(float frequency, float ratio) {
-        float w0 = twopi * frequency / m_sample_rate;
-        float sin_w0 = sinf(w0);
-        float cos_w0 = cosf(w0);
-        float a = sqrtf(ratio);
-        float s = 1.0f;
-        float alpha = sin_w0 * 0.5 * sqrtf((a + 1 / a) * (1 / s - 1) + 2);
-        float x = 2 * sqrtf(a) * alpha;
-        float a0 = (a + 1) - (a - 1) * cos_w0 + x;
-        float inv_a0 = 1 / a0;
-        m_b0 = (a * ((a + 1) + (a - 1) * cos_w0 + x)) * inv_a0;
-        m_b1 = (-2 * a * ((a - 1) + (a + 1) * cos_w0)) * inv_a0;
-        m_b2 = (a * ((a + 1) + (a - 1) * cos_w0 - x)) * inv_a0;
-        m_a1 = (2 * ((a - 1) - (a + 1) * cos_w0)) * inv_a0;
-        m_a2 = ((a + 1) - (a - 1) * cos_w0 - x) * inv_a0;
+    void set_parameters(float frequency, float gain) {
+        float x = sqrtf(gain) * frequency * m_sample_dur * 0.5f;
+        m_g = x / (1 + x);
+        m_gain = gain;
     }
 
     float process(float in) {
-        float out =
-            m_b0 * in + m_b1 * m_x1 + m_b2 * m_x2
-            - m_a1 * m_y1 - m_a2 * m_y2;
-        m_x2 = m_x1;
-        m_x1 = in;
-        m_y2 = flush_denormals(m_y1);
-        m_y1 = flush_denormals(out);
+        float v = (in - m_s) * m_g;
+        float y_lp = v + m_s;
+        m_s = y_lp + v;
+        float y_hp = in - y_lp;
+        float out = y_lp + m_gain * y_hp;
         return out;
     }
 
 private:
-    const float m_sample_rate;
-    float m_x1 = 0.0f;
-    float m_x2 = 0.0f;
-    float m_y1 = 0.0f;
-    float m_y2 = 0.0f;
-    float m_b0 = 1.0f, m_b1 = 0.0f, m_b2 = 0.0f, m_a1 = 0.0f, m_a2 = 0.0f;
+    const float m_sample_dur;
+    float m_s = 0.f;
+    float m_g = 1;
+    float m_gain = 1;
 };
 
 class LowShelf {
@@ -397,47 +382,31 @@ public:
     LowShelf(
         float sample_rate
     ) :
-    m_sample_rate(sample_rate)
+    m_sample_dur(1.0f / sample_rate)
     {
     }
 
-    void set_parameters(float frequency, float ratio) {
-        float w0 = twopi * frequency / m_sample_rate;
-        float sin_w0 = sinf(w0);
-        float cos_w0 = cosf(w0);
-        float a = sqrtf(ratio);
-        float s = 1.0f;
-        float alpha = sin_w0 * 0.5 * sqrtf((a + 1 / a) * (1 / s - 1) + 2);
-        float x = 2 * sqrtf(a) * alpha;
-        float a0 = (a + 1) + (a - 1) * cos_w0 + x;
-        float inv_a0 = 1 / a0;
-        m_b0 = (a * ((a + 1) - (a - 1) * cos_w0 + x)) * inv_a0;
-        m_b1 = (2 * a * ((a - 1) - (a + 1) * cos_w0)) * inv_a0;
-        m_b2 = (a * ((a + 1) - (a - 1) * cos_w0 - x)) * inv_a0;
-        m_a1 = (-2 * ((a - 1) + (a + 1) * cos_w0)) * inv_a0;
-        m_a2 = ((a + 1) + (a - 1) * cos_w0 - x) * inv_a0;
+    void set_parameters(float frequency, float gain) {
+        float x = sqrtf(gain) * frequency * m_sample_dur * 0.5f;
+        m_g = x / (1 + x);
+        m_gain = gain;
     }
 
     float process(float in) {
-        float out =
-            m_b0 * in + m_b1 * m_x1 + m_b2 * m_x2
-            - m_a1 * m_y1 - m_a2 * m_y2;
-        m_x2 = m_x1;
-        m_x1 = in;
-        m_y2 = flush_denormals(m_y1);
-        m_y1 = flush_denormals(out);
+        float v = (in - m_s) * m_g;
+        float y_lp = v + m_s;
+        m_s = y_lp + v;
+        float y_hp = in - y_lp;
+        float out = y_hp + m_gain * y_lp;
         return out;
     }
 
 private:
-    const float m_sample_rate;
-    float m_x1 = 0.0f;
-    float m_x2 = 0.0f;
-    float m_y1 = 0.0f;
-    float m_y2 = 0.0f;
-    float m_b0 = 1.0f, m_b1 = 0.0f, m_b2 = 0.0f, m_a1 = 0.0f, m_a2 = 0.0f;
+    const float m_sample_dur;
+    float m_s = 0.f;
+    float m_g = 1;
+    float m_gain = 1;
 };
-
 
 class BaseDelay {
 public:
